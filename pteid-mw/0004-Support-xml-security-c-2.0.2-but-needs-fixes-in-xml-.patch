@@ -1,0 +1,75 @@
+From fa6c6b55e34c05bd6802948861651707ae44e4e8 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=A9rgio=20M=2E=20Basto?= <sergio@serjux.com>
+Date: Sun, 2 Jun 2019 05:54:19 +0100
+Subject: [PATCH 4/8] Support-xml-security-c-2.0.2 but needs fixes in
+ xml-security-c-2.0.2
+
+https://github.com/apache/santuario-cpp/pull/5
+
+Include missing headers in Makefile.am
+---
+ applayer/XadesSignature.cpp | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/applayer/XadesSignature.cpp b/applayer/XadesSignature.cpp
+index f1cf3b1..8720ff8 100644
+--- a/applayer/XadesSignature.cpp
++++ b/applayer/XadesSignature.cpp
+@@ -577,7 +577,7 @@ int XadesSignature::HashSignedInfoNode(XERCES_NS DOMDocument *doc, XMLByte *hash
+ 
+     string c14n;
+     unsigned char buffer[1024];
+-    xsecsize_t bytes = 0;
++    XMLSize_t bytes = 0;
+     while((bytes = canonicalizer.outputBuffer(buffer, 1024)) > 0)
+     {
+         c14n.append( (char*)&buffer[0], size_t(bytes));
+@@ -632,7 +632,7 @@ int XadesSignature::HashSignedPropertiesNode(XERCES_NS DOMDocument *doc, XMLByte
+ 
+     string c14n;
+     unsigned char buffer[1024];
+-    xsecsize_t bytes = 0;
++    XMLSize_t bytes = 0;
+     while((bytes = canonicalizer.outputBuffer(buffer, 1024)) > 0)
+     {
+         c14n.append( (char*)&buffer[0], size_t(bytes));
+@@ -897,7 +897,7 @@ std::string canonicalNode(DOMNode *node, XERCES_NS DOMDocument *doc)
+ 
+     string c14n;
+     unsigned char buffer[1024];
+-    xsecsize_t bytes = 0;
++    XMLSize_t bytes = 0;
+     while((bytes = canonicalizer.outputBuffer(buffer, 1024)) > 0)
+     {
+         c14n.append((char*)&buffer[0], size_t(bytes));
+@@ -1181,7 +1181,8 @@ CByteArray &XadesSignature::Sign(const char ** paths, unsigned int n_paths)
+ 		//sig->setDSIGNSPrefix(MAKE_UNICODE_STRING("ds"));
+ 
+ 		// Use it to create a blank signature DOM structure from the doc
+-		sigNode = sig->createBlankSignature(doc, CANON_C14NE_NOC, SIGNATURE_RSA, HASH_SHA256);
++/* 		sigNode = sig->createBlankSignature(doc, CANON_C14NE_NOC, SIGNATURE_RSA, HASH_SHA256); */
++        sigNode = sig->createBlankSignature(doc, DSIGConstants::s_unicodeStrURIC14N_NOC, DSIGConstants::s_unicodeStrURIHMAC_SHA256);
+ 
+ 		//Add Id attribute to signature
+ 		//signature_id = (XMLCh*)generateNodeID().c_str();
+@@ -1197,7 +1198,7 @@ CByteArray &XadesSignature::Sign(const char ** paths, unsigned int n_paths)
+ 		{
+ 			const char * path = paths[i];
+ 			//Create a reference to the external file
+-			DSIGReference * ref = sig->createReference(createURI(path), HASH_SHA256);
++			DSIGReference * ref = sig->createReference(createURI(path), DSIGConstants::s_unicodeStrURIHMAC_SHA256);
+ 			MWLOG(LEV_DEBUG, MOD_APL, "SignXades(): Hashing file %s", path);
+ 			sha1_hash = HashFile(path);
+ 
+@@ -1215,7 +1216,7 @@ CByteArray &XadesSignature::Sign(const char ** paths, unsigned int n_paths)
+ 
+ 		HashSignedPropertiesNode(sig->getParentDocument(), sha1_hash_signed_props);
+ 
+-		DSIGReference * ref_signed_props = sig->createReference(createSignedPropertiesURI().c_str(), HASH_SHA256);
++		DSIGReference * ref_signed_props = sig->createReference(createSignedPropertiesURI().c_str(), DSIGConstants::s_unicodeStrURIHMAC_SHA256);
+ 		ref_signed_props->setType(XMLString::transcode("http://uri.etsi.org/01903#SignedProperties"));
+ 
+ 		setReferenceHash(sha1_hash_signed_props, SHA256_LEN, references_count, doc);
+-- 
+2.21.0
+

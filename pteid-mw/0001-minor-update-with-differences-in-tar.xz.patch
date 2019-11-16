@@ -1,0 +1,186 @@
+From d3697768a9b9ca71f354d28a242eb2ad539fd9a8 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=A9rgio=20M=2E=20Basto?= <sergio@serjux.com>
+Date: Sun, 2 Jun 2019 05:18:03 +0100
+Subject: [PATCH 1/8] minor update with differences in tar.xz
+
+From https://build.opensuse.org/package/show/home:emberez/pteid-mw
+
+https://www.autenticacao.gov.pt/cc-software ?
+---
+ CMD/services/stdsoap2.h     |  2 +-
+ debian/changelog            | 23 +++++++++++++++++++++++
+ debian/compat               |  2 +-
+ debian/control              |  8 +++++---
+ debian/copyright            |  2 --
+ debian/pteid-mw-gui.desktop |  6 +++---
+ eidguiV2/stdsoap2.h         |  2 +-
+ pkcs11/cal.h                | 13 +++++++------
+ 8 files changed, 41 insertions(+), 17 deletions(-)
+
+diff --git a/CMD/services/stdsoap2.h b/CMD/services/stdsoap2.h
+index 83cd299..d4b0fd5 100755
+--- a/CMD/services/stdsoap2.h
++++ b/CMD/services/stdsoap2.h
+@@ -1828,7 +1828,7 @@ typedef soap_int32 soap_mode;
+       struct tm _tm;\
+       gettimeofday(&_tv, NULL);\
+       localtime_r(&_tv.tv_sec, &_tm);\
+-      fprintf(fdebug, "%02d%02d%02d %02d:%02d:%02d.%06d|", _tm.tm_year%100, _tm.tm_mon+1, _tm.tm_mday, _tm.tm_hour, _tm.tm_min, _tm.tm_sec, _tv.tv_usec);\
++      fprintf(fdebug, "%02d%02d%02d %02d:%02d:%02d.%06ld|", _tm.tm_year%100, _tm.tm_mon+1, _tm.tm_mday, _tm.tm_hour, _tm.tm_min, _tm.tm_sec, _tv.tv_usec);\
+       CMD;\
+       fflush(fdebug);\
+     }\
+diff --git a/debian/changelog b/debian/changelog
+index 930e428..b418f70 100644
+--- a/debian/changelog
++++ b/debian/changelog
+@@ -1,3 +1,26 @@
++pteid-mw (3.0.16svn5840-4) UNRELEASED; urgency=medium
++
++  * SCAP Signature improvements
++  * Support for new 3072-bit RSA smartcards
++
++ -- Andre Guerreiro <andre.guerreiro@caixamagica.pt>  Fri, 08 Feb 2019 12:28:55 +0100
++pteid-mw (3.0.15svn5575-1) UNRELEASED; urgency=medium
++
++  * PDF signature bugfix
++  * Linux GTK plugin fix
++
++ -- Andre Guerreiro <andre.guerreiro@caixamagica.pt>  Wed, 05 Sep 2018 12:28:55 +0100
++pteid-mw (3.0.13svn5530-1) UNRELEASED; urgency=medium
++
++  * Address Change Bugfix
++  * Various SCAP related fixes
++
++ -- Andre Guerreiro <andre.guerreiro@caixamagica.pt>  Thu, 28 Jun 2018 12:28:55 +0100
++pteid-mw (3.0.12svn5475-1) UNRELEASED; urgency=medium
++
++  * Update to SVN revision 5437 - New V3 GUI application with CMD signature feature
++
++ -- Andre Guerreiro <andre.guerreiro@caixamagica.pt>  Thu, 10 May 2018 10:48:55 +0100
+ pteid-mw (2.4.11svn5339-1) UNRELEASED; urgency=medium
+ 
+   * Update to SVN revision 5339 - Disable checking of the address file hash in SOD only if the card was issued in a specific range of dates
+diff --git a/debian/compat b/debian/compat
+index 7f8f011..ec63514 100644
+--- a/debian/compat
++++ b/debian/compat
+@@ -1 +1 @@
+-7
++9
+diff --git a/debian/control b/debian/control
+index 283d95a..928a95f 100644
+--- a/debian/control
++++ b/debian/control
+@@ -6,6 +6,9 @@ Build-Depends: chrpath,
+                debhelper (>= 7.0.50~),
+                libpcsclite-dev,
+                libpoppler-qt5-dev,
++               libzip-dev,
++               libopenjp2-7-dev,
++               libpng-dev,
+                openjdk-8-jdk,
+                qtbase5-dev,
+                qt5-qmake,
+@@ -25,8 +28,7 @@ Homepage: https://www.autenticacao.gov.pt/cc-software
+ Package: pteid-mw
+ Conflicts: cartaodecidadao
+ Architecture: any
+-Depends: pcsc-tools,
+-         pcscd,
++Depends: pcscd,
+          qml-module-qtquick2,
+          qml-module-qtquick-controls2,	
+          qml-module-qtquick-dialogs,	
+@@ -40,7 +42,7 @@ Depends: pcsc-tools,
+          qml-module-qtquick-layouts,
+          qml-module-qtquick-window2,
+          qml-module-qtquick-templates2,
+-         java8-runtime,
++         qt5-gtk-platformtheme,
+          ${misc:Depends},
+          ${shlibs:Depends}
+ Description: Autenticação.Gov
+diff --git a/debian/copyright b/debian/copyright
+index e7f348d..53bd8e0 100644
+--- a/debian/copyright
++++ b/debian/copyright
+@@ -9,11 +9,9 @@ It was downloaded from:
+     <http://svn.gov.pt>
+ 
+ Upstream Author(s):
+-
+ 	Caixa Mágica Software <www.caixamagica.pt>
+ 
+ Copyright:
+-
+ 	Caixa Mágica Software <www.caixamagica.pt>
+ 
+ 
+diff --git a/debian/pteid-mw-gui.desktop b/debian/pteid-mw-gui.desktop
+index 1bd537e..a5e1efc 100644
+--- a/debian/pteid-mw-gui.desktop
++++ b/debian/pteid-mw-gui.desktop
+@@ -2,12 +2,12 @@
+ Comment=See and change information on your Portuguese eID Card
+ Comment[pt]=Veja e altere informações no seu Cartão de Cidadão
+ Encoding=UTF-8
+-Exec=pteidgui
++Exec=eidguiV2
+ GenericName=Portuguese eID Data
+ GenericName[pt]=Dados do Cartão de Cidadão
+ Icon=pteid-scalable
+-Name=Portugal eID Gui
+-Name[pt]=Cartão de Cidadão
++Name=Autenticação.gov
++Name[pt]=Autenticação.gov
+ StartupNotify=true
+ Terminal=false
+ Type=Application
+diff --git a/eidguiV2/stdsoap2.h b/eidguiV2/stdsoap2.h
+index 53e5d97..1f6833e 100644
+--- a/eidguiV2/stdsoap2.h
++++ b/eidguiV2/stdsoap2.h
+@@ -1828,7 +1828,7 @@ typedef soap_int32 soap_mode;
+       struct tm _tm;\
+       gettimeofday(&_tv, NULL);\
+       localtime_r(&_tv.tv_sec, &_tm);\
+-      fprintf(fdebug, "%02d%02d%02d %02d:%02d:%02d.%06d|", _tm.tm_year%100, _tm.tm_mon+1, _tm.tm_mday, _tm.tm_hour, _tm.tm_min, _tm.tm_sec, _tv.tv_usec);\
++      fprintf(fdebug, "%02d%02d%02d %02d:%02d:%02d.%06ld|", _tm.tm_year%100, _tm.tm_mon+1, _tm.tm_mday, _tm.tm_hour, _tm.tm_min, _tm.tm_sec, _tv.tv_usec);\
+       CMD;\
+       fflush(fdebug);\
+     }\
+diff --git a/pkcs11/cal.h b/pkcs11/cal.h
+index 0f346dd..99e3b6b 100644
+--- a/pkcs11/cal.h
++++ b/pkcs11/cal.h
+@@ -35,11 +35,11 @@ extern "C" {
+    {  CKM_SHA384,             384, 384  , CKF_DIGEST         }, \
+    {  CKM_SHA512,             512, 512  , CKF_DIGEST         }, \
+    {  CKM_RIPEMD160,          160, 160  , CKF_DIGEST         }, \
+-   {  CKM_RSA_PKCS,           1024, 2048, CKF_HW | CKF_SIGN  }, \
+-   {  CKM_MD5_RSA_PKCS,       1024, 2048, CKF_HW | CKF_SIGN  }, \
+-   {  CKM_SHA1_RSA_PKCS,      1024, 2048, CKF_HW | CKF_SIGN  }, \
+-   {  CKM_SHA256_RSA_PKCS,    1024, 2048, CKF_HW | CKF_SIGN  }, \
+-   {  CKM_RIPEMD160_RSA_PKCS, 1024, 2048, CKF_HW | CKF_SIGN  }  \
++   {  CKM_RSA_PKCS,           1024, 3072, CKF_HW | CKF_SIGN  }, \
++   {  CKM_MD5_RSA_PKCS,       1024, 3072, CKF_HW | CKF_SIGN  }, \
++   {  CKM_SHA1_RSA_PKCS,      1024, 3072, CKF_HW | CKF_SIGN  }, \
++   {  CKM_SHA256_RSA_PKCS,    1024, 3072, CKF_HW | CKF_SIGN  }, \
++   {  CKM_RIPEMD160_RSA_PKCS, 1024, 3072, CKF_HW | CKF_SIGN  }  \
+ }
+ 
+ 
+@@ -57,7 +57,8 @@ extern "C" {
+ 	{ CKA_UNWRAP,           ( CK_VOID_PTR ) NULL, 0 },   \
+ 	{ CKA_MODULUS,          ( CK_VOID_PTR ) NULL, 0 },   \
+    { CKA_MODULUS_BITS,     ( CK_VOID_PTR ) NULL, 0 },   \
+-   { CKA_EXTRACTABLE,     ( CK_VOID_PTR ) NULL, 0 },   \
++   { CKA_EXTRACTABLE,      ( CK_VOID_PTR ) NULL, 0 },   \
++   { CKA_ALWAYS_AUTHENTICATE,( CK_VOID_PTR ) NULL, 0 }, \
+ 	{ CKA_PUBLIC_EXPONENT,  ( CK_VOID_PTR ) NULL, 0 },   \
+ 	{ CKA_PRIVATE,          ( CK_VOID_PTR ) NULL, 0 },   \
+ 	{ CKA_PRIVATE_EXPONENT, ( CK_VOID_PTR ) NULL, 0 },   \
+-- 
+2.21.0
+

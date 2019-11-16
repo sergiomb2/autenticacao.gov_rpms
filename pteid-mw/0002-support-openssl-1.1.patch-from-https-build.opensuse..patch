@@ -1,0 +1,1159 @@
+From 6877cb74659663fe0b8f1af47c1aea999ce6eb16 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=A9rgio=20M=2E=20Basto?= <sergio@serjux.com>
+Date: Sun, 2 Jun 2019 05:50:50 +0100
+Subject: [PATCH 2/8] support-openssl-1.1.patch from
+ https://build.opensuse.org/package/show/home:emberez/pteid-mw
+
+---
+ applayer/APLCertif.cpp       |   3 +-
+ applayer/MiscUtil.cpp        |  34 +++-
+ applayer/SAM.cpp             |  77 +++++---
+ applayer/SSLConnection.cpp   |  37 +++-
+ applayer/SecurityContext.cpp | 118 +++++++-----
+ applayer/cryptoFramework.cpp | 354 +++++++----------------------------
+ applayer/cryptoFramework.h   |  10 +-
+ applayer/sign-pkcs7.cpp      |  43 +++--
+ 8 files changed, 269 insertions(+), 407 deletions(-)
+
+diff --git a/applayer/APLCertif.cpp b/applayer/APLCertif.cpp
+index 7ed8e75..9a79f70 100644
+--- a/applayer/APLCertif.cpp
++++ b/applayer/APLCertif.cpp
+@@ -1893,7 +1893,8 @@ APL_CertifStatus APL_OcspResponse::getResponse(CByteArray *response)
+ 	}
+ 	else
+ 	{
+-		status=m_cryptoFwk->GetOCSPResponse(m_uri.c_str(),*m_certid,m_response);
++		/* XX: OpenSSL 1.1 migration: this condition is never hit  */
++	//	status=m_cryptoFwk->GetOCSPResponse(m_uri.c_str(),*m_certid,m_response);
+ 	}
+ 
+ 	if(response)
+diff --git a/applayer/MiscUtil.cpp b/applayer/MiscUtil.cpp
+index d194e38..b579de3 100644
+--- a/applayer/MiscUtil.cpp
++++ b/applayer/MiscUtil.cpp
+@@ -23,6 +23,7 @@
+ #include <openssl/evp.h>
+ #include <openssl/buffer.h>
+ #include <openssl/pem.h>
++#include <openssl/err.h>
+ 
+ #ifdef WIN32
+ #include <Windows.h>
+@@ -39,6 +40,8 @@
+ #include <cstring>
+ #include <string>
+ 
++#include <memory>
++
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #ifndef WIN32
+@@ -249,18 +252,21 @@ std::vector<std::string> toPEM(char *p_certificate, int certificateLen) {
+     return certs;
+ }
+ 
++using BIO_MEM_ptr = std::unique_ptr<BIO, decltype(&::BIO_free)>;
++
++
+ /*  *********************************************************
+     ***          X509_to_PEM()                            ***
+     ********************************************************* */
+ char *X509_to_PEM(X509 *x509) {
+ 
+-    BIO *bio = NULL;
+     char *pem = NULL;
++    int rc = 0;
+ 
+     if ( NULL == x509 ) {
+         return NULL;
+     }
+-
++/*
+     bio = BIO_new( BIO_s_mem() );
+     if ( NULL == bio ) {
+         return NULL;
+@@ -270,7 +276,7 @@ char *X509_to_PEM(X509 *x509) {
+         BIO_free( bio );
+         return NULL;
+     }
+-
++    
+     pem = (char *) malloc( bio->num_write + 1 );
+     if ( NULL == pem ){
+         BIO_free(bio);
+@@ -279,8 +285,28 @@ char *X509_to_PEM(X509 *x509) {
+ 
+     memset( pem, 0, bio->num_write + 1 );
+     BIO_read( bio, pem, bio->num_write );
+-    BIO_free( bio );
++    */
++    BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
++
++    rc = PEM_write_bio_X509(bio.get(), x509);
++    long err = ERR_get_error();
++
++    if (rc != 1)
++    {
++        fprintf(stderr, "PEM_write_bio_X509 failed, error 0x%08x\n", err);
++        return NULL;
++    }
++
++    BUF_MEM *mem = NULL;
++    BIO_get_mem_ptr(bio.get(), &mem);
++    err = ERR_get_error();
++    //TODO: handle this error
+ 
++//    string pem(mem->data, mem->length);
++//    BIO_free( bio );
++    //XXX: this is probably broken... needs testing
++    //
++    pem = strdup(mem->data); 
+     return pem;
+ }
+ 
+diff --git a/applayer/SAM.cpp b/applayer/SAM.cpp
+index 5601220..3adcc75 100644
+--- a/applayer/SAM.cpp
++++ b/applayer/SAM.cpp
+@@ -114,10 +114,13 @@ char * SAM::_getCVCPublicKey()
+ 	unsigned char * mod_bytes = cvc_modulus.GetBytes();
+ 	unsigned char * exp_bytes = cvc_exponent.GetBytes();
+ 
+-	key_tmp->n = BN_bin2bn(mod_bytes+offset_mod,
+-                                 128, key_tmp->n);
+-	key_tmp->e = BN_bin2bn(exp_bytes+offset_exp,
+-                                 3, key_tmp->e);
++	BIGNUM *rsa_n = BN_new();
++	BIGNUM *rsa_e = BN_new();
++
++	BN_bin2bn(mod_bytes+offset_mod, 128, rsa_n);
++	BN_bin2bn(exp_bytes+offset_exp, 3, rsa_e);
++
++	RSA_set0_key(key_tmp, rsa_n, rsa_e, NULL);
+ 
+ 	EVP_PKEY_assign_RSA(evp_key, key_tmp);
+ 	 
+@@ -126,6 +129,8 @@ char * SAM::_getCVCPublicKey()
+ 	cvc_key = (char *)malloc(out_len);
+ 
+ 	binToHex(rsa_der, der_len, cvc_key, out_len);
++
++	RSA_free(key_tmp);
+ 	free(rsa_der);
+ 
+ 	return cvc_key;
+@@ -144,8 +149,14 @@ char * SAM::_getCardAuthPublicKey()
+ 	unsigned char * mod_bytes = key->getModulus()->GetBytes();
+ 	unsigned char * exp_bytes = key->getExponent()->GetBytes();
+ 
+-	key_tmp->n = BN_bin2bn(mod_bytes, key->getModulus()->Size(), key_tmp->n);
+-	key_tmp->e = BN_bin2bn(exp_bytes, key->getExponent()->Size(), key_tmp->e);
++	BIGNUM *rsa_n = BN_new();
++	BIGNUM *rsa_e = BN_new();
++
++	BN_bin2bn(mod_bytes, key->getModulus()->Size(), rsa_n);
++	BN_bin2bn(exp_bytes, key->getExponent()->Size(), rsa_e);
++
++	RSA_set0_key(key_tmp, rsa_n, rsa_e, NULL);
++
+ 	EVP_PKEY_assign_RSA(evp_key, key_tmp);
+ 
+ 	int der_len = i2d_PUBKEY(evp_key, &rsa_der);
+@@ -155,6 +166,7 @@ char * SAM::_getCardAuthPublicKey()
+ 
+ 	binToHex(rsa_der, der_len, card_auth_pubkey, out_len);
+ 
++	RSA_free(key_tmp);
+ 	free(rsa_der);
+ 	return card_auth_pubkey;
+ }
+@@ -322,39 +334,46 @@ char *SAM::getPK_IFD_AUT(CByteArray &cvc_cert)
+ 	}
+ 	memcpy(signature, ptr+4, sizeof(signature));
+ 
+-    //Build CVC CA public key     
+-    RSA * pubkey = RSA_new();
+-    pubkey->n = BN_bin2bn(m_ca_cvc_modulus.GetBytes(), 128, NULL); // BN_hex2bn(&pubkey->n, ca_mod);
+-    pubkey->e = BN_bin2bn(m_ca_cvc_exponent.GetBytes(), 3, NULL); // BN_hex2bn(&pubkey->n, ca_mod);
++	//Build CVC CA public key     
++	RSA * pubkey = RSA_new();
++
++	BIGNUM *rsa_n = BN_new();
++	BIGNUM *rsa_e = BN_new();
++	BN_bin2bn(m_ca_cvc_modulus.GetBytes(), 128, rsa_n); 
++	BN_bin2bn(m_ca_cvc_exponent.GetBytes(), 3, rsa_e); 
+ 
+-    if (pubkey->n == NULL || pubkey->e == NULL)
+-    {
+-    	MWLOG(LEV_ERROR, MOD_APL, L"Failed to parse bignums into public key struct!" );
+-    	return NULL;
+-    }
++	RSA_set0_key(pubkey, rsa_n, rsa_e, NULL);
+ 
+-    int ret = RSA_public_decrypt(sizeof(signature), signature, decrypted_data, pubkey, RSA_NO_PADDING);
++	/*
++	if (pubkey->n == NULL || pubkey->e == NULL)
++	{
++		MWLOG(LEV_ERROR, MOD_APL, L"Failed to parse bignums into public key struct!" );
++		return NULL;
++	}
++	*/
++
++	int ret = RSA_public_decrypt(sizeof(signature), signature, decrypted_data, pubkey, RSA_NO_PADDING);
+ 
+-    if (ret == -1)
+-    {
+-      	MWLOG(LEV_ERROR, MOD_APL, L"Error decrypting CVC signature: %ld\n", ERR_get_error());
+-      	return NULL;
+-    }
++	if (ret == -1)
++	{
++		MWLOG(LEV_ERROR, MOD_APL, L"Error decrypting CVC signature: %ld\n", ERR_get_error());
++		return NULL;
++	}
+ 
+-    char CHR[8];
++	char CHR[8];
+ 
+-    //These 12 bytes are used to identify the PK.IFD.AUT. Its value is:
++	//These 12 bytes are used to identify the PK.IFD.AUT. Its value is:
+ 	//Filler (0–4 bytes) || SN.IFD (8–12 bytes)
+-    const int chr_offset = 10+4;
+-    memcpy(CHR, decrypted_data+chr_offset, sizeof(CHR));
++	const int chr_offset = 10+4;
++	memcpy(CHR, decrypted_data+chr_offset, sizeof(CHR));
+ 
+-    char * chr_string = (char *) malloc(sizeof(CHR)*2+1);
++	char * chr_string = (char *) malloc(sizeof(CHR)*2+1);
+ 
+-    binToHex((const unsigned char *)CHR, sizeof(CHR), chr_string, 8*2+1);
++	binToHex((const unsigned char *)CHR, sizeof(CHR), chr_string, 8*2+1);
+ 
+-    //fprintf(stderr, "Certificate Holder reference (IFD): %s\n", chr_string);
++	//fprintf(stderr, "Certificate Holder reference (IFD): %s\n", chr_string);
+ 
+-    return chr_string;
++	return chr_string;
+ }
+ 
+ 
+diff --git a/applayer/SSLConnection.cpp b/applayer/SSLConnection.cpp
+index e82bbad..6e723ef 100644
+--- a/applayer/SSLConnection.cpp
++++ b/applayer/SSLConnection.cpp
+@@ -158,15 +158,15 @@ void SSLConnection::loadCertChain(X509_STORE *store, APL_Certif * authentication
+ 
+ 		if (issuer == NULL)
+ 		{
+-			break;
+ 			MWLOG(LEV_DEBUG, MOD_APL, "loadCertChain exited early without finding root: incomplete chain");
++			break;
+ 		}
+ 
+ 		MWLOG(LEV_DEBUG, MOD_APL, "loadCertChain: Loading cert: %s", issuer->getOwnerName());
+ 		const unsigned char *cert_data = issuer->getData().GetBytes();
+-	    pCert = d2i_X509(&pCert, &cert_data, issuer->getData().Size());
++	        pCert = d2i_X509(&pCert, &cert_data, issuer->getData().Size());
+ 
+-	    if (pCert == NULL)
++	        if (pCert == NULL)
+ 		{
+ 			char *parsing_error = ERR_error_string(ERR_get_error(), NULL);
+ 			MWLOG(LEV_ERROR, MOD_APL, L"SSLConnection::loadCertChain: Error parsing certificate #%d. Details: %s",
+@@ -183,9 +183,10 @@ void SSLConnection::loadCertChain(X509_STORE *store, APL_Certif * authentication
+ 		}
+ 		pCert = NULL;
+ 		certif = issuer;
++		MWLOG(LEV_DEBUG, MOD_APL, "Added certificate with subject: %s", certif->getLabel());
+ 		i++;
+ 	}
+-
++	
+ }
+ 
+ 
+@@ -980,12 +981,27 @@ void SSLConnection::connect_encrypted(char* host_and_port)
+ 
+     RSA *rsa = RSA_new();
+ 
+-    rsa->flags |= RSA_FLAG_SIGN_VER;
++    BIGNUM * privkey_n = NULL;
++    BIGNUM * privkey_e = NULL;
++    const char * dummy_modulus = "00f32f95bfc90606348541f6a247955949cddbb4970ab7b07d72c1eb6f498fb48613030831950d14f2aaf2c066d5f7f0974bb536fe01eeceec14d97ec78a762bfdb982c82ef401e0aae81cb6c7c9ce43288cd971fda8aa3003b8eda33e915cc999730e4fa2ee28a704aff556fa12b3b6b3134f21a180e5906d14dd9a63ab179a1c234ad3e9ca796eef9efcf1358052abf182e0c85c3e4945d3082090dae0b686c199f24cb6451f7f859e06114f16f51b805d2818e9c3f6476d5a1dc12b397343cf6056fa186af2946003160fddf562c6decac4ccfc6f335a7e3f78f441a90fd05c3a80f7789f643106441af14d3c3cfe81b8dee6441065f9f6163019652f5af19d";
++    const char * dummy_exp = "10001";
++ 
++    BN_hex2bn(&privkey_n, dummy_modulus);
++    BN_hex2bn(&privkey_e, dummy_exp);
++
++    RSA_set0_key(rsa, privkey_n, privkey_e, NULL);
+ 
+-    RSA_METHOD *current_method = (RSA_METHOD *)RSA_PKCS1_SSLeay();
+-    current_method->rsa_sign = eIDMW::rsa_sign;
+-    current_method->flags |= RSA_FLAG_SIGN_VER;
+-    current_method->flags |= RSA_METHOD_FLAG_NO_CHECK;
++    //XXX: not needed anymore ??
++    //RSA_set_flags(rsa, RSA_FLAG_SIGN_VER);
++
++    //OpenSSL 1.1 migration: test this
++//    RSA_METHOD *current_method = (RSA_METHOD *)RSA_PKCS1_SSLeay();
++//    current_method->rsa_sign = eIDMW::rsa_sign;
++//    current_method->flags |= RSA_METHOD_FLAG_NO_CHECK;
++    RSA_METHOD * current_method = (RSA_METHOD *) RSA_get_default_method();
++
++    RSA_meth_set_sign(current_method, eIDMW::rsa_sign);
++    RSA_meth_set_flags(current_method, RSA_METHOD_FLAG_NO_CHECK);
+ 
+     RSA_set_method(rsa, current_method);
+ 
+@@ -1409,4 +1425,5 @@ bool SSLConnection::InitSAMConnection()
+ 
+     return true;
+ }
+-}
++
++}
+\ No newline at end of file
+diff --git a/applayer/SecurityContext.cpp b/applayer/SecurityContext.cpp
+index cf52a91..5d1806f 100644
+--- a/applayer/SecurityContext.cpp
++++ b/applayer/SecurityContext.cpp
+@@ -130,11 +130,11 @@ namespace eIDMW
+ 
+ 		unsigned char ssc_block[] = {0,0,0,0,0,0,0,0};
+ 		unsigned char xx[MAC_KEYSIZE];
+-	    unsigned char des_out[MAC_KEYSIZE];
+-	    unsigned char *msg = NULL;
+-	    des_key_schedule ks_a;
+-	    des_key_schedule ks_b;
+-	    size_t i, j;
++	    	unsigned char des_out[MAC_KEYSIZE];
++	    	unsigned char *msg = NULL;
++	    	DES_key_schedule ks_a;
++	    	DES_key_schedule ks_b;
++	    	size_t i, j;
+ 
+ 		CByteArray in;
+ 		//std::cerr << "DEBUG: retail_mac_des: mac_input.Size(): " << mac_input.Size() << std::endl;
+@@ -485,7 +485,7 @@ namespace eIDMW
+ 
+         //Verify hash C = SHA-1 [PRND1 || KICC || SN.ICC || TRnd || KIFD || DH.Params]
+ 
+-        EVP_MD_CTX cmd_ctx;
++        EVP_MD_CTX * cmd_ctx = EVP_MD_CTX_new();
+ 		unsigned int md_len = 0;
+ 		const int prnd1_len = 106;
+ 
+@@ -497,24 +497,26 @@ namespace eIDMW
+ 		dh_params.Append(this->dh_p);
+ 		dh_params.Append(this->dh_q);
+ 
+-		EVP_DigestInit(&cmd_ctx, EVP_sha1());
+-		EVP_DigestUpdate(&cmd_ctx, prnd1, prnd1_len);
+-		EVP_DigestUpdate(&cmd_ctx, m_kicc.GetBytes(), m_kicc.Size());
+-		EVP_DigestUpdate(&cmd_ctx, snICC.GetBytes(), snICC.Size());
+-		EVP_DigestUpdate(&cmd_ctx, m_RNDIFD.GetBytes(), m_RNDIFD.Size());
+-		EVP_DigestUpdate(&cmd_ctx, m_kifd.GetBytes(), m_kifd.Size());
+-		EVP_DigestUpdate(&cmd_ctx, dh_params.GetBytes(), dh_params.Size());
++		EVP_DigestInit(cmd_ctx, EVP_sha1());
++		EVP_DigestUpdate(cmd_ctx, prnd1, prnd1_len);
++		EVP_DigestUpdate(cmd_ctx, m_kicc.GetBytes(), m_kicc.Size());
++		EVP_DigestUpdate(cmd_ctx, snICC.GetBytes(), snICC.Size());
++		EVP_DigestUpdate(cmd_ctx, m_RNDIFD.GetBytes(), m_RNDIFD.Size());
++		EVP_DigestUpdate(cmd_ctx, m_kifd.GetBytes(), m_kifd.Size());
++		EVP_DigestUpdate(cmd_ctx, dh_params.GetBytes(), dh_params.Size());
+ 
+ 
+-    	EVP_DigestFinal(&cmd_ctx, computed_digest, &md_len);
++		EVP_DigestFinal(cmd_ctx, computed_digest, &md_len);
+ 
+-    	if (md_len != 20)
+-    	{
+-    		fprintf(stderr, "Should be SHA-1 hash, Abort!\n");
+-    		return false;
+-    	}
++		if (md_len != 20)
++		{
++			fprintf(stderr, "Should be SHA-1 hash, Abort!\n");
++			return false;
++		}
+ 
+-    	//Check the calculated hash against the one returned by the card
++		EVP_MD_CTX_free(cmd_ctx);
++
++		//Check the calculated hash against the one returned by the card
+ 		return memcmp(computed_digest, c_hash, 20) == 0;
+ 	}
+ 
+@@ -602,7 +604,7 @@ namespace eIDMW
+ 		if (cRnd == NULL || strlen(cRnd) == 0)
+ 		{
+ 			fprintf(stderr, "Couldn't get CRnd random bytes from the card, aborting!\n");
+-			
++
+ 			free(cRnd);
+ 			free(snIFD);
+ 			return CByteArray();
+@@ -616,41 +618,41 @@ namespace eIDMW
+ 		challenge[0] = 0x6A;
+ 		challenge[127] = 0xBC;
+ 
+-        if (RAND_status() != 1) {
++		if (RAND_status() != 1) {
+ 			MWLOG(LEV_ERROR, MOD_APL, L"SecurityContext: RNG is not seeded yet!");
+-        }
++		}
+ 
+ 
+-        if (RAND_bytes(prnd2, PRND2_SIZE) == 0) {
++		if (RAND_bytes(prnd2, PRND2_SIZE) == 0) {
+ 
+-            fprintf(stderr, "Error obtaining PRND2 bytes of random from OpenSSL\n");
+-            free(cRnd);
+-            free(snIFD);
+-            return CByteArray();
+-        }
++			fprintf(stderr, "Error obtaining PRND2 bytes of random from OpenSSL\n");
++			free(cRnd);
++			free(snIFD);
++			return CByteArray();
++		}
+ 
+-		EVP_MD_CTX cmd_ctx;
++		EVP_MD_CTX * cmd_ctx = EVP_MD_CTX_new();
+ 		unsigned int md_len = 0;
+ 
+-		EVP_DigestInit(&cmd_ctx, EVP_sha1());
+-		EVP_DigestUpdate(&cmd_ctx, prnd2, PRND2_SIZE);
+-		EVP_DigestUpdate(&cmd_ctx, m_kifd.GetBytes(), m_kifd.Size());
+-		EVP_DigestUpdate(&cmd_ctx, sn_ifd_bytes.GetBytes(), sn_ifd_bytes.Size());
+-		EVP_DigestUpdate(&cmd_ctx, crnd_bytes.GetBytes(), crnd_bytes.Size());
+-		EVP_DigestUpdate(&cmd_ctx, m_kicc.GetBytes(), m_kicc.Size());
+-		EVP_DigestUpdate(&cmd_ctx, dh_params.GetBytes(), dh_params.Size());
++		EVP_DigestInit(cmd_ctx, EVP_sha1());
++		EVP_DigestUpdate(cmd_ctx, prnd2, PRND2_SIZE);
++		EVP_DigestUpdate(cmd_ctx, m_kifd.GetBytes(), m_kifd.Size());
++		EVP_DigestUpdate(cmd_ctx, sn_ifd_bytes.GetBytes(), sn_ifd_bytes.Size());
++		EVP_DigestUpdate(cmd_ctx, crnd_bytes.GetBytes(), crnd_bytes.Size());
++		EVP_DigestUpdate(cmd_ctx, m_kicc.GetBytes(), m_kicc.Size());
++		EVP_DigestUpdate(cmd_ctx, dh_params.GetBytes(), dh_params.Size());
+ 
+ 
+-    	EVP_DigestFinal(&cmd_ctx, sha1_digest, &md_len);
++		EVP_DigestFinal(cmd_ctx, sha1_digest, &md_len);
+ 
+-    	if (md_len != 20)
+-    	{
+-    		fprintf(stderr, "Should be SHA-1 hash, Abort!\n");
+-    	}
+ 
+-    	for (int i=0; i!=PRND2_SIZE; i++)
++		if (md_len != 20)
+ 		{
++		    fprintf(stderr, "Should be SHA-1 hash, Abort!\n");
++		}
+ 
++		for (int i=0; i!=PRND2_SIZE; i++)
++		{
+ 			challenge[i+1] = prnd2[i];
+ 		}
+ 
+@@ -658,7 +660,8 @@ namespace eIDMW
+ 			challenge[i+107] = sha1_digest[i];
+ 
+ 		free(cRnd);
+-        free(snIFD);
++		free(snIFD);
++		EVP_MD_CTX_free(cmd_ctx);
+ 
+ 		return CByteArray(challenge, sizeof(challenge));
+ 	}
+@@ -677,9 +680,15 @@ namespace eIDMW
+ 		this->dh_g = CByteArray(std::string(dh_params.dh_g), true);
+ 		this->dh_q = CByteArray(std::string(dh_params.dh_q), true);
+ 
++		BIGNUM *dhkey_p = NULL;
++		BIGNUM *dhkey_g = NULL;
++
+ 		DH * dh_key = DH_new();
+-		BN_hex2bn(&(dh_key->p), dh_params.dh_p);
+-		BN_hex2bn(&(dh_key->g), dh_params.dh_g);
++
++		BN_hex2bn(&dhkey_p, dh_params.dh_p);
++		BN_hex2bn(&dhkey_g, dh_params.dh_g);
++
++		DH_set0_pqg(dh_key, dhkey_p, NULL, dhkey_g);
+ 
+ 		//Store the card auth key for later
+ 		this->pkIccAuth = CByteArray(std::string(dh_params.card_auth_public_key), true);
+@@ -690,13 +699,17 @@ namespace eIDMW
+ 			throw CMWEXCEPTION(EIDMW_ERR_CVC_GENERIC_ERROR);
+ 		}
+ 
+-	 	char * kifd = BN_bn2hex(dh_key->pub_key);
+-	 	unsigned char * kifd_bytes = (unsigned char *) OPENSSL_malloc(BN_num_bytes(dh_key->pub_key));
++		const BIGNUM * pub_key = NULL;
++
++		DH_get0_key(dh_key, &pub_key, NULL);
++
++	 	char * kifd = BN_bn2hex(pub_key);
++	 	unsigned char * kifd_bytes = (unsigned char *) OPENSSL_malloc(BN_num_bytes(pub_key));
+ 
+ 	 	//int BN_bn2bin(const BIGNUM *a, unsigned char *to);
+ 	 	//Store the byte array version for further computations
+-	 	BN_bn2bin(dh_key->pub_key, kifd_bytes);
+-	 	m_kifd = CByteArray(kifd_bytes, BN_num_bytes(dh_key->pub_key));
++	 	BN_bn2bin(pub_key, kifd_bytes);
++	 	m_kifd = CByteArray(kifd_bytes, BN_num_bytes(pub_key));
+ 
+ 	 	if(!sam_helper->sendKIFD(kifd))
+ 	 	{
+@@ -718,7 +731,7 @@ namespace eIDMW
+ 		
+ 	    //DH_compute_key() computes the shared secret from the private DH value in dh and the other party's public value in pub_key and stores it in
+         //key. key must point to DH_size(dh) bytes of memory.
+-        unsigned int shared_secret_len = DH_size(dh_key);
++        	unsigned int shared_secret_len = DH_size(dh_key);
+ 		unsigned char * kicc_ifd = (unsigned char *) OPENSSL_malloc(shared_secret_len);
+ 		rc = DH_compute_key(kicc_ifd, kicc, dh_key);
+ 
+@@ -726,8 +739,9 @@ namespace eIDMW
+ 
+ 		m_kicc_ifd = CByteArray(kicc_ifd, shared_secret_len);
+ 
+-		//std::cerr << "KICC/KIFD " << byteArrayToString(m_kicc_ifd) << std::endl;
++		DH_free(dh_key);
+ 
++		//std::cerr << "KICC/KIFD " << byteArrayToString(m_kicc_ifd) << std::endl;
+ 	}
+ 
+ 	bool SecurityContext::writeFile(char *fileID, CByteArray file_content, unsigned int offset)
+diff --git a/applayer/cryptoFramework.cpp b/applayer/cryptoFramework.cpp
+index 8216374..5a275f7 100644
+--- a/applayer/cryptoFramework.cpp
++++ b/applayer/cryptoFramework.cpp
+@@ -288,7 +288,7 @@ bool APL_CryptoFwk::VerifyCrlDateValidity(const CByteArray &crl)
+ 	return bOk;
+ }
+ 
+-bool APL_CryptoFwk::VerifyCrlDateValidity(const X509_CRL *pX509_Crl)
++bool APL_CryptoFwk::VerifyCrlDateValidity(X509_CRL *pX509_Crl)
+ {
+ 	bool bOk=false;
+ 
+@@ -435,38 +435,19 @@ bool APL_CryptoFwk::isIssuer(const CByteArray &cert,const CByteArray &issuer)
+ 	return bOk;
+ }
+ 
+-bool APL_CryptoFwk::VerifyCertSignature(X509 *pX509_Cert,X509 *pX509_Issuer)
++bool APL_CryptoFwk::VerifyCertSignature(X509 *pX509_Cert, X509 *pX509_Issuer)
+ {
+-	bool bOk = false;
+ 
+ 	if(pX509_Cert==NULL || pX509_Issuer==NULL)
+ 		throw CMWEXCEPTION(EIDMW_ERR_CHECK);
+ 
+-	//Convert pX509_Cert->cert_info into unsigned char * and then into CByteArray
+-	unsigned char *pucInfo,*pucInfoNext;
+-	long lLen=i2d_X509_CINF(pX509_Cert->cert_info,NULL); //Get the length for the buffer
+-	if(lLen > 0)
+-	{
+-		OpenSSL_add_all_digests();
+-		//Convert the signature into CByteArray
+-		CByteArray signature(pX509_Cert->signature->data,pX509_Cert->signature->length);
+-		pucInfo = pucInfoNext = (unsigned char *)malloc(lLen);	//Allocate the buffer
+-		i2d_X509_CINF(pX509_Cert->cert_info,&pucInfoNext);		//Fill the buffer
+-		CByteArray certinfo(pucInfo,lLen);						//Fill the CByteArray
+-		free(pucInfo);											//Free buffer
+-
+-		const EVP_MD *algorithm;
+-		int i=OBJ_obj2nid(pX509_Cert->sig_alg->algorithm);
+-		const char *algoName=OBJ_nid2sn(i);
+-		algorithm=EVP_get_digestbyname(algoName);
+-		if(algorithm==NULL)
+-			algorithm=EVP_sha1();
+-
+-		//Verify if the signature of the certinfo is correct (regarding the issuer certificate)
+-		bOk=VerifySignature(certinfo,signature,pX509_Issuer,algorithm);
+-	}
++	OpenSSL_add_all_digests();
+ 
+-	return bOk;
++	EVP_PKEY * issuer_pubKey = X509_get_pubkey(pX509_Issuer);
++
++	int rc = X509_verify(pX509_Cert, issuer_pubKey);
++
++	return rc == 1;
+ }
+ 
+ bool APL_CryptoFwk::VerifyCrlSignature(X509_CRL *pX509_Crl,X509 *pX509_Issuer)
+@@ -474,28 +455,16 @@ bool APL_CryptoFwk::VerifyCrlSignature(X509_CRL *pX509_Crl,X509 *pX509_Issuer)
+ 	if(pX509_Crl==NULL || pX509_Issuer==NULL)
+ 		throw CMWEXCEPTION(EIDMW_ERR_CHECK);
+ 
+-	bool bOk = false;
+-
+-	//Convert pX509_Crl into unsigned char * and then into CByteArray
+-	unsigned char *pucCrl,*pucCrlNext;
+-	long lLen=i2d_X509_CRL_INFO(pX509_Crl->crl,NULL); //Get the length for the buffer
+-	if(lLen > 0)
+-	{
+-		//Convert the signature into CByteArray
+-		CByteArray signature(pX509_Crl->signature->data,pX509_Crl->signature->length);
++	OpenSSL_add_all_digests();
+ 
+-		pucCrl = pucCrlNext = (unsigned char *)malloc(lLen);	//Allocate the buffer
+-		i2d_X509_CRL_INFO(pX509_Crl->crl,&pucCrlNext);		//Fill the buffer
+-		CByteArray crl(pucCrl,lLen);						//Fill the CByteArray
+-		free(pucCrl);										//Free buffer
++        EVP_PKEY * issuer_pubKey = X509_get_pubkey(pX509_Issuer);
+ 
+-		//Verify if the signature of the certinfo is correct (regarding the issuer certificate)
+-		bOk=VerifySignature(crl,signature,pX509_Issuer,EVP_sha1());
+-	}
++	int rc = X509_CRL_verify(pX509_Crl, issuer_pubKey);
+ 
+-	return bOk;
++	return rc == 1;
+ }
+ 
++
+ const EVP_MD *APL_CryptoFwk::ConvertAlgorithm(FWK_HashAlgo algo)
+ {
+ 	switch(algo)
+@@ -567,19 +536,21 @@ bool APL_CryptoFwk::GetHash(const CByteArray &data, const EVP_MD *algorithm, CBy
+ 	if(hash==NULL)
+ 		throw CMWEXCEPTION(EIDMW_ERR_CHECK);
+ 
+-	EVP_MD_CTX cmd_ctx;
++	EVP_MD_CTX *cmd_ctx = EVP_MD_CTX_new();
+ 	unsigned char md_value[EVP_MAX_MD_SIZE] = {0};
+ 	unsigned int md_len = 0;
+ 
+ 	//Calculate the hash from the data
+-	EVP_DigestInit(&cmd_ctx, algorithm);
+-    EVP_DigestUpdate(&cmd_ctx, data.GetBytes(), data.Size());
+-    EVP_DigestFinal(&cmd_ctx, md_value, &md_len);
++	EVP_DigestInit(cmd_ctx, algorithm);
++	EVP_DigestUpdate(cmd_ctx, data.GetBytes(), data.Size());
++	EVP_DigestFinal(cmd_ctx, md_value, &md_len);
+ 
+ 	//Copy the hash in the ByteArray
+ 	hash->ClearContents();
+ 	hash->Append(md_value,md_len);
+ 
++	EVP_MD_CTX_free(cmd_ctx);
++
+ 	return true;
+ 
+ }
+@@ -606,28 +577,28 @@ bool APL_CryptoFwk::VerifySignatureSha1(const CByteArray &data, const CByteArray
+ 
+ bool APL_CryptoFwk::VerifySignature(const CByteArray &data, const CByteArray &signature, X509 *pX509, const EVP_MD *algorithm)
+ {
+- 	if(pX509==NULL)
++	if(pX509==NULL)
+ 		throw CMWEXCEPTION(EIDMW_ERR_CHECK);
+ 
+-    EVP_MD_CTX cmd_ctx;
+-    EVP_PKEY *pKey = NULL;
+- 	const unsigned char *pucSign=NULL;
++	EVP_MD_CTX * cmd_ctx = EVP_MD_CTX_new();
++	EVP_PKEY *pKey = NULL;
++	const unsigned char *pucSign=NULL;
+ 	long ret;
+ 
+ 	//Get the public key
+-    if (NULL == (pKey = X509_get_pubkey(pX509)))
+-        throw CMWEXCEPTION(EIDMW_ERR_CHECK);
++	if (NULL == (pKey = X509_get_pubkey(pX509)))
++		throw CMWEXCEPTION(EIDMW_ERR_CHECK);
+ 
+ 	//VERIFY THE DATA-SIGNATURE with public key
+-	EVP_VerifyInit(&cmd_ctx, algorithm);
+-    EVP_VerifyUpdate(&cmd_ctx, data.GetBytes(), data.Size());
++	EVP_VerifyInit(cmd_ctx, algorithm);
++	EVP_VerifyUpdate(cmd_ctx, data.GetBytes(), data.Size());
+ 
+ 	pucSign=signature.GetBytes();
+-	ret = EVP_VerifyFinal(&cmd_ctx, pucSign, signature.Size(), pKey);
++	ret = EVP_VerifyFinal(cmd_ctx, pucSign, signature.Size(), pKey);
+ 
+-	EVP_MD_CTX_cleanup(&cmd_ctx);
+- 	//Free openSSL object
+-    EVP_PKEY_free(pKey);
++	EVP_MD_CTX_free(cmd_ctx);
++	//Free openSSL object
++	EVP_PKEY_free(pKey);
+ 
+ 	return (ret==1);
+ }
+@@ -670,7 +641,7 @@ FWK_CertifStatus APL_CryptoFwk::CRLValidation(const CByteArray &cert,const CByte
+ 		for(int i = 0; i < sk_X509_REVOKED_num(pRevokeds); i++)
+ 		{
+ 			X509_REVOKED *pRevoked = sk_X509_REVOKED_value(pRevokeds, i);
+-			if(M_ASN1_INTEGER_cmp(X509_get_serialNumber(pX509),pRevoked->serialNumber)==0)
++			if(ASN1_INTEGER_cmp(X509_get_serialNumber(pX509), X509_REVOKED_get0_serialNumber(pRevoked))==0)
+ 			{
+ 				bFound=true;
+ 				break;
+@@ -760,158 +731,6 @@ cleanup:
+ 	return eStatus;
+ }
+ 
+-FWK_CertifStatus APL_CryptoFwk::GetOCSPResponse(const char *pUrlResponder,const tOcspCertID &certid, CByteArray *pResponse,const CByteArray *issuer)
+-{
+-	if(certid.issuerNameHash==NULL || certid.issuerKeyHash==NULL || certid.serialNumber==NULL)
+-		throw CMWEXCEPTION(EIDMW_ERR_CHECK);
+-
+-	bool bResponseOk = false;
+-	X509 *pX509_Issuer = NULL;
+- 	OCSP_CERTID *pCertID=NULL;
+-	ASN1_TYPE *astype;
+-	X509_ALGOR *hashAlgorithm=NULL;
+-	ASN1_OCTET_STRING *issuerNameHash=NULL;
+-	ASN1_OCTET_STRING *issuerKeyHash=NULL;
+-	ASN1_INTEGER *serialNumber=NULL;
+-	FWK_CertifStatus eStatus=FWK_CERTIF_STATUS_UNCHECK;
+-	OCSP_RESPONSE *pOcspResponse=NULL;
+-	int nid = 0;
+-
+-	if(issuer)
+-	{
+-		const unsigned char *pucIssuer=NULL;
+-
+-		//Convert issuer into pX509_Issuer
+-		pucIssuer=issuer->GetBytes();
+-		if ( ! d2i_X509_Wrapper(&pX509_Issuer, pucIssuer,issuer->Size() ) )
+-		{
+-			eStatus=FWK_CERTIF_STATUS_ERROR;
+-			goto cleanup;
+-		}
+-	}
+-
+-	//Convert tOcspCertID into OCSP_CERTID
+-
+-	switch(certid.hashAlgorithm)
+-	{
+-	case FWK_ALGO_MD5:
+-		nid = EVP_MD_type(EVP_md5());
+-		break;
+-	case FWK_ALGO_SHA1:
+-		nid = EVP_MD_type(EVP_sha1());
+-		break;
+-	case FWK_ALGO_SHA256:
+-		nid = EVP_MD_type(EVP_sha256());
+-		break;	
+-	}
+-
+-	if (!(astype = ASN1_TYPE_new()))
+-	{
+-		eStatus=FWK_CERTIF_STATUS_ERROR;
+-		goto cleanup;
+-	}
+-
+-	astype->type=V_ASN1_NULL;
+-
+-	if (!(hashAlgorithm = X509_ALGOR_new()))
+-	{
+-		eStatus=FWK_CERTIF_STATUS_ERROR;
+-		goto cleanup;
+-	}
+-
+-	hashAlgorithm->algorithm=OBJ_nid2obj(nid);
+-	hashAlgorithm->parameter=astype;
+-
+-	if(!(issuerNameHash=ASN1_OCTET_STRING_new()))
+-	{
+-		eStatus=FWK_CERTIF_STATUS_ERROR;
+-		goto cleanup;
+-	}
+-
+-	// Mac's ASN1_OCTET_STRING_set() needs a 'const unsigned char *' instead of an 'unsigned char *'
+-	unsigned char tucTmp[200];
+-
+-	memset(tucTmp, 0, sizeof(tucTmp));
+-	if (certid.issuerNameHash->Size() <= sizeof(tucTmp))
+-		memcpy(tucTmp, certid.issuerNameHash->GetBytes(), certid.issuerNameHash->Size());
+-	ASN1_OCTET_STRING_set(issuerNameHash, tucTmp,certid.issuerNameHash->Size());
+-
+-	if(!(issuerKeyHash=ASN1_OCTET_STRING_new()))
+-	{
+-		eStatus=FWK_CERTIF_STATUS_ERROR;
+-		goto cleanup;
+-	}
+-
+-	memset(tucTmp, 0, sizeof(tucTmp));
+-	if (certid. issuerKeyHash->Size() <= sizeof(tucTmp))
+-		memcpy(tucTmp, certid. issuerKeyHash->GetBytes(), certid. issuerKeyHash->Size());
+-	ASN1_OCTET_STRING_set(issuerKeyHash,tucTmp,certid.issuerKeyHash->Size());
+-
+-	if(!(serialNumber=ASN1_INTEGER_new()))
+-	{
+-		eStatus=FWK_CERTIF_STATUS_ERROR;
+-		goto cleanup;
+-	}
+-
+-	memset(tucTmp, 0, sizeof(tucTmp));
+-	if (certid. serialNumber->Size() <= sizeof(tucTmp))
+-		memcpy(tucTmp, certid. serialNumber->GetBytes(), certid. serialNumber->Size());
+-	ASN1_OCTET_STRING_set(serialNumber,tucTmp,certid.serialNumber->Size());
+-
+-	if (!(pCertID = OCSP_CERTID_new()))
+-	{
+-		eStatus=FWK_CERTIF_STATUS_ERROR;
+-		goto cleanup;
+-	}
+-
+-	pCertID->hashAlgorithm=hashAlgorithm;
+-	pCertID->issuerNameHash=issuerNameHash;
+-	pCertID->issuerKeyHash=issuerKeyHash;
+-	pCertID->serialNumber=serialNumber;
+-
+-	try
+-	{
+-		eStatus=GetOCSPResponse(pUrlResponder,pCertID,&pOcspResponse,pX509_Issuer);
+-		if(eStatus!=FWK_CERTIF_STATUS_CONNECT && eStatus!=FWK_CERTIF_STATUS_ERROR)
+-			bResponseOk=true;
+-	}
+-	catch(CMWException e)
+-	{
+-		eStatus=FWK_CERTIF_STATUS_ERROR;
+-	}
+-
+-	if(bResponseOk && pResponse)
+-	{
+-		unsigned char *pBuffer=NULL;
+-		unsigned char *pBufferNext=NULL;
+-
+-		long lLen = i2d_OCSP_RESPONSE(pOcspResponse, NULL);
+-		if(lLen > 0)
+-		{
+-			pBuffer = pBufferNext = (unsigned char *)malloc(lLen);
+-			i2d_OCSP_RESPONSE(pOcspResponse, &pBufferNext);
+-			pResponse->Append(pBuffer,lLen);
+-			free(pBuffer);
+-		}
+-		else
+-		{
+-			eStatus=FWK_CERTIF_STATUS_ERROR;
+-		}
+-	}
+-
+-cleanup:
+-	//Free openSSL object
+-	if (pOcspResponse) OCSP_RESPONSE_free(pOcspResponse);
+-	//if (pCertID) OCSP_CERTID_free(pCertID);
+-	//if (hashAlgorithm) X509_ALGOR_free(hashAlgorithm);
+-	//if (astype) ASN1_TYPE_free(astype);
+-	//if (issuerNameHash) ASN1_OCTET_STRING_free(issuerNameHash);
+-	//if (issuerKeyHash) ASN1_OCTET_STRING_free(issuerKeyHash);
+-	//if (serialNumber) ASN1_INTEGER_free(serialNumber);
+-
+-	return eStatus;
+-}
+-
+ FWK_CertifStatus APL_CryptoFwk::GetOCSPResponse(X509 *pX509_Cert,X509 *pX509_Issuer, OCSP_RESPONSE **pResponse)
+ {
+ 	if(pX509_Cert==NULL || pX509_Issuer==NULL)
+@@ -1149,78 +968,26 @@ FWK_CertifStatus APL_CryptoFwk::GetOCSPResponse(const char *pUrlResponder,OCSP_C
+ 			pX509 = d2i_X509(&pX509, &p, sod_ca->getData().Size());
+ 			X509_STORE_add_cert(store, pX509);
+ 			//fprintf(stderr, "OCSP: Adding CA %s\n", X509_NAME_oneline(X509_get_subject_name(pX509), 0, 0));
+-		}
+-
+-		verify_ctx = X509_STORE_CTX_new();
++	}
+ 
+ 		if(pX509_Issuer)
+ 		{
+-			//Get the algorithm
+-			const EVP_MD *algorithm;
+-			int i=OBJ_obj2nid(pBasic->signatureAlgorithm->algorithm);
+-			const char *algoName=OBJ_nid2sn(i);
+-			algorithm=EVP_get_digestbyname(algoName);
+-			if(algorithm==NULL)
+-				algorithm=EVP_sha1();
+-
+-			//Get the Data of the response
+-			long lLen = i2d_OCSP_RESPDATA(pBasic->tbsResponseData,NULL); //Get the length for the buffer
+-			if(lLen <= 0)
+-			{
+-				eStatus=FWK_CERTIF_STATUS_ERROR;
+-				goto cleanup;
+-			}
+-
+-			unsigned char *pucBuffer=NULL;
+-			unsigned char *pucBufferNext=NULL;
+-			pucBuffer = pucBufferNext = (unsigned char *)malloc(lLen);		//Allocate the buffer
+-			i2d_OCSP_RESPDATA(pBasic->tbsResponseData,&pucBufferNext);		//Fill the buffer
+-			CByteArray baData(pucBuffer,lLen);								//Fill the CByteArray
+-			free(pucBuffer);												//Free buffer
+-
+-			//Get the signature
+-			CByteArray baSignature(pBasic->signature->data,pBasic->signature->length);
+-
+-			//We check the certificate in the response to see if has correctly signed the response
+-			//and for this certificate we check if the issuer was the one we have
+-			STACK_OF(X509) *pX509s = pBasic->certs;
+-			X509 *pX509 = NULL;
+-			bool bFound = false;
+-
+-			//Loop through the X509's
+-			for(int i = 0; i < sk_X509_num(pX509s); i++)
+-			{
+-				pX509 = sk_X509_value(pX509s, i);
+-				if(pX509 != NULL)
+-				{
+-					if(VerifySignature(baData,baSignature,pX509,algorithm))
+-					{
+-						bFound = true;
+-						break;
+-					}
++			//TODO: Investigate if we need specific flags here ...
++			unsigned long verify_flags = 0;
++			int rc =  OCSP_basic_verify(pBasic, NULL, store, verify_flags);
++
++			if (rc <= 0) {
++			        
++				MWLOG(LEV_DEBUG, MOD_APL, "Couldn't validate OCSP certificate using builtin roots. Trying issuer...");
++  				eStatus = FWK_CERTIF_STATUS_ERROR;
++				//XXX: Old validation method, disabled for now
++				/*
++				if(!VerifyCertSignature(pX509, pX509_Issuer)) {
++					MWLOG(LEV_ERROR, MOD_APL, "Couldn't validate OCSP certificate using issuer. This may or may not be serious...");
++  				        eStatus = FWK_CERTIF_STATUS_ERROR;
+ 				}
+-			}
+-			if (bFound)
+-			{
+-				//Init validation context using the SOD CA certificates as trusted
+-				X509_STORE_CTX_init(verify_ctx, store, pX509, NULL);
+-				//fprintf(stderr, "OCSP: Next we're going to verify cert: %s\n", X509_NAME_oneline(X509_get_subject_name(pX509), 0, 0));
+-				int ret_validation = X509_verify_cert(verify_ctx);
++				*/
+ 
+-				if (ret_validation < 1)
+-				{
+-
+-					MWLOG(LEV_DEBUG, MOD_APL, "Couldn't validate OCSP certificate using builtin roots. Trying issuer...");
+-					//eStatus = FWK_CERTIF_STATUS_ERROR;
+-				}
+-				// Old validation method
+-				if(!VerifyCertSignature(pX509,pX509_Issuer))
+-					MWLOG(LEV_DEBUG, MOD_APL, "Couldn't validate OCSP certificate using issuer. This may or may not be serious...");
+-				
+-			}
+-			else
+-			{
+-				eStatus=FWK_CERTIF_STATUS_ERROR;
+ 			}
+ 		
+ 		}
+@@ -1536,8 +1303,8 @@ BIO *APL_CryptoFwk::Connect(char *pszHost, int iPort, int iSSL, SSL_CTX **ppSSLC
+ 	if (iSSL)
+ 	{
+ 		OpenSSL_add_all_algorithms();
+-		SSL_library_init();
+-		SSL_load_error_strings();
++		SSL_library_init();
++		SSL_load_error_strings();
+ 		ERR_load_BIO_strings();
+ 
+ 		SSL_CTX *pSSLCtx = SSL_CTX_new(TLSv1_1_client_method());
+@@ -1547,9 +1314,9 @@ BIO *APL_CryptoFwk::Connect(char *pszHost, int iPort, int iSSL, SSL_CTX **ppSSLC
+ 		//This will only load root certs for Linux
+ 		SSL_CTX_set_default_verify_paths(pSSLCtx);
+ 
+-		SSL_CTX_set_options(pSSLCtx, SSL_OP_NO_TICKET | SSL_OP_NO_SSLv2);
+-
+-#ifndef __APPLE__
++		SSL_CTX_set_options(pSSLCtx, SSL_OP_NO_TICKET | SSL_OP_NO_SSLv2);
++
++#ifndef __APPLE__
+ 		SSL_CTX_set_verify(pSSLCtx, SSL_VERIFY_PEER, NULL);
+ #endif
+ 
+@@ -1568,8 +1335,21 @@ BIO *APL_CryptoFwk::Connect(char *pszHost, int iPort, int iSSL, SSL_CTX **ppSSLC
+ 		}
+ 	}
+ 
+-	BIO_set_conn_int_port(pConnect, &iPort);
+-		//Set BIO as nonblocking
++	//BIO_set_conn_int_port(pConnect, &iPort);
++	char * port_str = NULL; 
++	switch (iPort) {
++	   case 80:
++		port_str = "http";
++		break;
++	   case 443:
++		port_str = "https";
++		break;
++	   default:
++		port_str = " ";
++		break;
++	}
++	BIO_set_conn_port(pConnect, port_str);
++	//Set BIO as nonblocking
+ 	BIO_set_nbio(pConnect, 1);
+ 
+ 	int rv = BIO_do_connect(pConnect);
+diff --git a/applayer/cryptoFramework.h b/applayer/cryptoFramework.h
+index 667dcc1..2ef11c1 100644
+--- a/applayer/cryptoFramework.h
++++ b/applayer/cryptoFramework.h
+@@ -227,14 +227,6 @@ public:
+ 	  */
+ 	FWK_CertifStatus GetOCSPResponse(const CByteArray &cert, const CByteArray &issuer, CByteArray *response);
+ 
+-	/**
+-	  * Send a OCSP request and get the response
+-	  * If issuer is not NULL, the verification of the response is done
+-	  * Throw exception if something unwanted append (no connection...)
+-	  * @return The status
+-	  */
+-	FWK_CertifStatus GetOCSPResponse(const char *pUrlResponder,const tOcspCertID &certid, CByteArray *response,const CByteArray *issuer=NULL);
+-
+ 	/**
+ 	  * Return the Url of the OCSP responder
+ 	  * @return true if OCSP responder found
+@@ -405,7 +397,7 @@ protected:
+ 	/**
+ 	  * Verify the validity date of the crl
+ 	  */
+-	bool VerifyCrlDateValidity(const X509_CRL *pX509_Crl);
++	bool VerifyCrlDateValidity(X509_CRL *pX509_Crl);
+ 
+ 	/**
+ 	  * Check if the crl has the issuer (issuer)
+diff --git a/applayer/sign-pkcs7.cpp b/applayer/sign-pkcs7.cpp
+index 9144466..ca157a9 100644
+--- a/applayer/sign-pkcs7.cpp
++++ b/applayer/sign-pkcs7.cpp
+@@ -111,31 +111,33 @@ void add_signed_time(PKCS7_SIGNER_INFO *si)
+ unsigned int SHA256_Wrapper(unsigned char *data, unsigned long data_len, unsigned char *digest)
+ {
+ 
+-	EVP_MD_CTX cmd_ctx;
++	EVP_MD_CTX *cmd_ctx = EVP_MD_CTX_new();
+ 	unsigned int md_len = 0;
+ 
+ 	//Calculate the hash from the data
+-	EVP_DigestInit(&cmd_ctx, EVP_sha256());
+-	EVP_DigestUpdate(&cmd_ctx, data, data_len);
+-    EVP_DigestFinal(&cmd_ctx, digest, &md_len);
++	EVP_DigestInit(cmd_ctx, EVP_sha256());
++	EVP_DigestUpdate(cmd_ctx, data, data_len);
++	EVP_DigestFinal(cmd_ctx, digest, &md_len);
+ 
+-	return md_len;
++	EVP_MD_CTX_free(cmd_ctx);
+ 
++	return md_len;
+ }
+ 
+ unsigned int SHA1_Wrapper(unsigned char *data, unsigned long data_len, unsigned char *digest)
+ {
+ 
+-	EVP_MD_CTX cmd_ctx;
++	EVP_MD_CTX *cmd_ctx = EVP_MD_CTX_new();
+ 	unsigned int md_len = 0;
+ 
+ 	//Calculate the hash from the data
+-	EVP_DigestInit(&cmd_ctx, EVP_sha1());
+-	EVP_DigestUpdate(&cmd_ctx, data, data_len);
+-    EVP_DigestFinal(&cmd_ctx, digest, &md_len);
++	EVP_DigestInit(cmd_ctx, EVP_sha1());
++	EVP_DigestUpdate(cmd_ctx, data, data_len);
++	EVP_DigestFinal(cmd_ctx, digest, &md_len);
+ 
+-	return md_len;
++	EVP_MD_CTX_free(cmd_ctx);
+ 
++	return md_len;
+ }
+ 
+ 
+@@ -179,8 +181,8 @@ typedef unsigned int
+  *
+ */
+ 
+-int append_tsp_token(PKCS7_SIGNER_INFO *sinfo, unsigned char *token, int token_len)
+-{
++int append_tsp_token(PKCS7_SIGNER_INFO *sinfo, unsigned char *token, int token_len) {
++
+ 
+ 	TS_RESP *tsp = d2i_TS_RESP(NULL, (const unsigned char**)&token, token_len);
+ 
+@@ -194,7 +196,7 @@ int append_tsp_token(PKCS7_SIGNER_INFO *sinfo, unsigned char *token, int token_l
+ #endif
+ 
+     TS_VERIFY_CTX * verify_ctx = TS_VERIFY_CTX_new();
+-    verify_ctx->flags = TS_VFY_VERSION;
++    TS_VERIFY_CTX_set_flags(verify_ctx, TS_VFY_VERSION);
+ 
+     if(TS_RESP_verify_response(verify_ctx, tsp) != 1) {
+ 
+@@ -205,7 +207,7 @@ int append_tsp_token(PKCS7_SIGNER_INFO *sinfo, unsigned char *token, int token_l
+ 	if (tsp != NULL)
+ 	{
+ 
+-		PKCS7* token = tsp->token;
++		PKCS7* token = TS_RESP_get_token(tsp);
+ 
+ 		int p7_len = i2d_PKCS7(token, NULL);
+ 		unsigned char *p7_der = (unsigned char *)OPENSSL_malloc(p7_len);
+@@ -233,6 +235,7 @@ int append_tsp_token(PKCS7_SIGNER_INFO *sinfo, unsigned char *token, int token_l
+ 		return 1;
+ 	}
+ 
++
+ 	return 0;
+ 
+ }
+@@ -240,6 +243,9 @@ int append_tsp_token(PKCS7_SIGNER_INFO *sinfo, unsigned char *token, int token_l
+ 
+ void add_signingCertificate(PKCS7_SIGNER_INFO *si, X509 *x509, unsigned char * cert_data, unsigned long cert_len)
+ {
++	/* This function is only supported in OpenSSL 1.0.2 for now */
++#if OPENSSL_VERSION_NUMBER < 0x10100000L
++
+ 	ASN1_STRING *seq = NULL;
+ 	unsigned char cert_sha256_sum[SHA256_LEN];
+ 	unsigned char *p, *pp = NULL;
+@@ -252,6 +258,8 @@ void add_signingCertificate(PKCS7_SIGNER_INFO *si, X509 *x509, unsigned char * c
+ 
+ 	SHA256_Wrapper(cert_data, cert_len, cert_sha256_sum);
+ 
++	/* TODO: OpenSSL 1.1 migration - test this */
++
+ 	/* Create the SigningCertificateV2 attribute. */
+ 
+ 	if (!(sc = ESS_SIGNING_CERT_new()))
+@@ -260,9 +268,12 @@ void add_signingCertificate(PKCS7_SIGNER_INFO *si, X509 *x509, unsigned char * c
+ 	/* Adding the signing certificate id. */
+ 	if (!(cid = ESS_CERT_ID_new()))
+ 		goto end;
+-	if (!ASN1_OCTET_STRING_set(cid->hash, cert_sha256_sum,
++	cid = ess_CERT_ID_new_init(x509, 0);
++
++	/*if (!ASN1_OCTET_STRING_set(cid->hash, cert_sha256_sum,
+ 		sizeof(cert_sha256_sum)))
+ 		goto end;
++		*/
+ 
+ 	//Add Issuer and Serial Number
+ 
+@@ -303,6 +314,8 @@ void add_signingCertificate(PKCS7_SIGNER_INFO *si, X509 *x509, unsigned char * c
+ 
+ 	end:
+ 	MWLOG(LEV_ERROR, MOD_APL, L"Failed to add SigningCertificateV2 attribute.");
++
++#endif //OPENSSL_VERSION_NUMBER	
+ }
+ 
+ void addCertificateChain(PKCS7 *p7) 
+-- 
+2.21.0
+

@@ -1,0 +1,17 @@
+From 9efdce2cdbd125d3a33992fb3fce658f4feaf9db Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=A9rgio=20M=2E=20Basto?= <sergio@serjux.com>
+Date: Sun, 2 Jun 2019 06:22:23 +0100
+Subject: [PATCH 5/8] git mv eidmw.pro pteid-mw.pro
+
+---
+ eidmw.pro => pteid-mw.pro | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ rename eidmw.pro => pteid-mw.pro (100%)
+
+diff --git a/eidmw.pro b/pteid-mw.pro
+similarity index 100%
+rename from eidmw.pro
+rename to pteid-mw.pro
+-- 
+2.21.0
+
