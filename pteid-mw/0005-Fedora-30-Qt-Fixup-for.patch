@@ -1,18 +1,20 @@
-From 686a06ab9584ad4818e2746aeaa38df76d66d7dc Mon Sep 17 00:00:00 2001
+From 4b4a4c80b06ab8ea76ffeac346bad46d9087fcdf Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?S=C3=A9rgio=20M=2E=20Basto?= <sergio@serjux.com>
-Date: Mon, 11 Nov 2019 04:55:56 +0000
-Subject: [PATCH 8/8] Fixup
+Date: Sat, 16 Nov 2019 04:26:07 +0000
+Subject: [PATCH 5/5] Fedora 30 Qt Fixup for
 
 filesavedialog.h:7:10: fatal error: private/qguiapplication_p.h: No such file or directory
+
+I had to disable HELP dir
 ---
- eidguiV2/filesavedialog.cpp | 8 --------
- eidguiV2/filesavedialog.h   | 1 -
+ pteid-mw-pt/_src/eidmw/eidguiV2/filesavedialog.cpp | 8 --------
+ pteid-mw-pt/_src/eidmw/eidguiV2/filesavedialog.h   | 1 -
  2 files changed, 9 deletions(-)
 
-diff --git a/eidguiV2/filesavedialog.cpp b/eidguiV2/filesavedialog.cpp
-index 6d92446..3240ad0 100644
---- a/eidguiV2/filesavedialog.cpp
-+++ b/eidguiV2/filesavedialog.cpp
+diff --git a/pteid-mw-pt/_src/eidmw/eidguiV2/filesavedialog.cpp b/pteid-mw-pt/_src/eidmw/eidguiV2/filesavedialog.cpp
+index 4d7d3035..35a62346 100644
+--- a/pteid-mw-pt/_src/eidmw/eidguiV2/filesavedialog.cpp
++++ b/pteid-mw-pt/_src/eidmw/eidguiV2/filesavedialog.cpp
 @@ -8,7 +8,6 @@
  
  FileSaveDialog::FileSaveDialog(QQuickItem *parent)
@@ -35,10 +37,10 @@ index 6d92446..3240ad0 100644
  void FileSaveDialog::open()
  {
      if (!valid()) return;
-diff --git a/eidguiV2/filesavedialog.h b/eidguiV2/filesavedialog.h
-index 7577d21..0c5416e 100644
---- a/eidguiV2/filesavedialog.h
-+++ b/eidguiV2/filesavedialog.h
+diff --git a/pteid-mw-pt/_src/eidmw/eidguiV2/filesavedialog.h b/pteid-mw-pt/_src/eidmw/eidguiV2/filesavedialog.h
+index 7577d211..0c5416e8 100644
+--- a/pteid-mw-pt/_src/eidmw/eidguiV2/filesavedialog.h
++++ b/pteid-mw-pt/_src/eidmw/eidguiV2/filesavedialog.h
 @@ -4,7 +4,6 @@
  #include <QQuickItem>
  #include <QFileDialog>

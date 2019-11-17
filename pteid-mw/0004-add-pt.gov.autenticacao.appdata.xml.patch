@@ -1,21 +1,19 @@
-From 56ca6c0ebc5cb2e8aa15c7fc971d57f3a19499b0 Mon Sep 17 00:00:00 2001
+From 581d0b4aaf656ba13c4cdfd543d06a60fbdc1f05 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?S=C3=A9rgio=20M=2E=20Basto?= <sergio@serjux.com>
-Date: Sun, 2 Jun 2019 07:11:29 +0100
-Subject: [PATCH 6/8] add pt.gov.autenticacao.appdata.xml and pteid-mw.dirs
+Date: Sat, 16 Nov 2019 04:23:42 +0000
+Subject: [PATCH 4/5] add pt.gov.autenticacao.appdata.xml
 
 from https://build.opensuse.org/package/show/home:emberez/pteid-mw
 ---
- debian/pt.gov.autenticacao.appdata.xml | 40 ++++++++++++++++++++++++++
- debian/pteid-mw.dirs                   |  4 +++
- 2 files changed, 44 insertions(+)
- create mode 100644 debian/pt.gov.autenticacao.appdata.xml
- create mode 100644 debian/pteid-mw.dirs
+ .../debian/pt.gov.autenticacao.appdata.xml    | 40 +++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+ create mode 100644 pteid-mw-pt/_src/eidmw/debian/pt.gov.autenticacao.appdata.xml
 
-diff --git a/debian/pt.gov.autenticacao.appdata.xml b/debian/pt.gov.autenticacao.appdata.xml
+diff --git a/pteid-mw-pt/_src/eidmw/debian/pt.gov.autenticacao.appdata.xml b/pteid-mw-pt/_src/eidmw/debian/pt.gov.autenticacao.appdata.xml
 new file mode 100644
-index 0000000..ee8d4c6
+index 00000000..ee8d4c62
 --- /dev/null
-+++ b/debian/pt.gov.autenticacao.appdata.xml
++++ b/pteid-mw-pt/_src/eidmw/debian/pt.gov.autenticacao.appdata.xml
 @@ -0,0 +1,40 @@
 +<?xml version="1.0" encoding="UTF-8"?>
 +<component type="desktop">
@@ -57,16 +55,6 @@ index 0000000..ee8d4c6
 +    </release>
 +  </releases>
 +</component>
-diff --git a/debian/pteid-mw.dirs b/debian/pteid-mw.dirs
-new file mode 100644
-index 0000000..96d29e4
---- /dev/null
-+++ b/debian/pteid-mw.dirs
-@@ -0,0 +1,4 @@
-+usr/local/bin
-+usr/local/lib
-+usr/local/include
-+usr/local/share
 -- 
 2.21.0
 

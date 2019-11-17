@@ -1,53 +1,35 @@
-From 686a06ab9584ad4818e2746aeaa38df76d66d7dc Mon Sep 17 00:00:00 2001
+From 4b4a4c80b06ab8ea76ffeac346bad46d9087fcdf Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?S=C3=A9rgio=20M=2E=20Basto?= <sergio@serjux.com>
-Date: Sat, 16 Nov 2019 03:35:21 +0000
-Subject: [PATCH 0/8] *** SUBJECT HERE ***
+Date: Sat, 16 Nov 2019 04:30:47 +0000
+Subject: [PATCH 0/5] *** SUBJECT HERE ***
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
 *** BLURB HERE ***
 
-Sérgio M. Basto (8):
-  minor update with differences in tar.xz
-  support-openssl-1.1.patch from
-    https://build.opensuse.org/package/show/home:emberez/pteid-mw
+Sérgio M. Basto (5):
+  Support-openssl-1.1.patch from
   openssl1.1-support-eidguiV2.patch from
-    https://build.opensuse.org/package/show/home:emberez/pteid-mw
-  Support-xml-security-c-2.0.2 but needs fixes in xml-security-c-2.0.2
-  git mv eidmw.pro pteid-mw.pro
-  add pt.gov.autenticacao.appdata.xml and pteid-mw.dirs
-  update pteid-mw.spec
-  Fixup
+  Support-xml-security-c-2.0.2
+  add pt.gov.autenticacao.appdata.xml
+  Fedora 30 Qt Fixup for
 
- CMD/services/stdsoap2.h                |   2 +-
- applayer/APLCertif.cpp                 |   3 +-
- applayer/MiscUtil.cpp                  |  34 ++-
- applayer/SAM.cpp                       |  77 ++++--
- applayer/SSLConnection.cpp             |  37 ++-
- applayer/SecurityContext.cpp           | 118 +++++----
- applayer/XadesSignature.cpp            |  13 +-
- applayer/cryptoFramework.cpp           | 354 +++++--------------------
- applayer/cryptoFramework.h             |  10 +-
- applayer/sign-pkcs7.cpp                |  43 +--
- debian/changelog                       |  23 ++
- debian/compat                          |   2 +-
- debian/control                         |   8 +-
- debian/copyright                       |   2 -
- debian/pt.gov.autenticacao.appdata.xml |  40 +++
- debian/pteid-mw-gui.desktop            |   6 +-
- debian/pteid-mw.dirs                   |   4 +
- eidguiV2/filesavedialog.cpp            |   8 -
- eidguiV2/filesavedialog.h              |   1 -
- eidguiV2/pdfsignatureclient.cpp        |  11 +-
- eidguiV2/stdsoap2.h                    |   2 +-
- pkcs11/cal.h                           |  13 +-
- eidmw.pro => pteid-mw.pro              |   0
- pteid-mw.spec                          |  26 +-
- 24 files changed, 377 insertions(+), 460 deletions(-)
- create mode 100644 debian/pt.gov.autenticacao.appdata.xml
- create mode 100644 debian/pteid-mw.dirs
- rename eidmw.pro => pteid-mw.pro (100%)
+ pteid-mw-pt/_src/eidmw/applayer/APLCertif.cpp |   3 +-
+ pteid-mw-pt/_src/eidmw/applayer/MiscUtil.cpp  |  34 +-
+ pteid-mw-pt/_src/eidmw/applayer/SAM.cpp       |  77 ++--
+ .../_src/eidmw/applayer/SSLConnection.cpp     |  37 +-
+ .../_src/eidmw/applayer/SecurityContext.cpp   | 118 +++---
+ .../_src/eidmw/applayer/XadesSignature.cpp    |  13 +-
+ .../_src/eidmw/applayer/cryptoFramework.cpp   | 344 ++++--------------
+ .../_src/eidmw/applayer/cryptoFramework.h     |  10 +-
+ .../_src/eidmw/applayer/sign-pkcs7.cpp        |  43 ++-
+ .../debian/pt.gov.autenticacao.appdata.xml    |  40 ++
+ .../_src/eidmw/eidguiV2/filesavedialog.cpp    |   8 -
+ .../_src/eidmw/eidguiV2/filesavedialog.h      |   1 -
+ .../eidmw/eidguiV2/pdfsignatureclient.cpp     |  11 +-
+ 13 files changed, 317 insertions(+), 422 deletions(-)
+ create mode 100644 pteid-mw-pt/_src/eidmw/debian/pt.gov.autenticacao.appdata.xml
 
 -- 
 2.21.0

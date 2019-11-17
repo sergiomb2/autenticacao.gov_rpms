@@ -1,25 +1,25 @@
-From 6877cb74659663fe0b8f1af47c1aea999ce6eb16 Mon Sep 17 00:00:00 2001
+From c5bd123589065d974b27aaa5a4f2735cce61d56c Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?S=C3=A9rgio=20M=2E=20Basto?= <sergio@serjux.com>
-Date: Sun, 2 Jun 2019 05:50:50 +0100
-Subject: [PATCH 2/8] support-openssl-1.1.patch from
- https://build.opensuse.org/package/show/home:emberez/pteid-mw
+Date: Sat, 16 Nov 2019 04:16:17 +0000
+Subject: [PATCH 1/5] Support-openssl-1.1.patch from
 
+https://build.opensuse.org/package/show/home:emberez/pteid-mw
 ---
- applayer/APLCertif.cpp       |   3 +-
- applayer/MiscUtil.cpp        |  34 +++-
- applayer/SAM.cpp             |  77 +++++---
- applayer/SSLConnection.cpp   |  37 +++-
- applayer/SecurityContext.cpp | 118 +++++++-----
- applayer/cryptoFramework.cpp | 354 +++++++----------------------------
- applayer/cryptoFramework.h   |  10 +-
- applayer/sign-pkcs7.cpp      |  43 +++--
- 8 files changed, 269 insertions(+), 407 deletions(-)
+ pteid-mw-pt/_src/eidmw/applayer/APLCertif.cpp |   3 +-
+ pteid-mw-pt/_src/eidmw/applayer/MiscUtil.cpp  |  34 +-
+ pteid-mw-pt/_src/eidmw/applayer/SAM.cpp       |  77 ++--
+ .../_src/eidmw/applayer/SSLConnection.cpp     |  37 +-
+ .../_src/eidmw/applayer/SecurityContext.cpp   | 118 +++---
+ .../_src/eidmw/applayer/cryptoFramework.cpp   | 344 ++++--------------
+ .../_src/eidmw/applayer/cryptoFramework.h     |  10 +-
+ .../_src/eidmw/applayer/sign-pkcs7.cpp        |  43 ++-
+ 8 files changed, 264 insertions(+), 402 deletions(-)
 
-diff --git a/applayer/APLCertif.cpp b/applayer/APLCertif.cpp
-index 7ed8e75..9a79f70 100644
---- a/applayer/APLCertif.cpp
-+++ b/applayer/APLCertif.cpp
-@@ -1893,7 +1893,8 @@ APL_CertifStatus APL_OcspResponse::getResponse(CByteArray *response)
+diff --git a/pteid-mw-pt/_src/eidmw/applayer/APLCertif.cpp b/pteid-mw-pt/_src/eidmw/applayer/APLCertif.cpp
+index 1c3dc189..b0865def 100644
+--- a/pteid-mw-pt/_src/eidmw/applayer/APLCertif.cpp
++++ b/pteid-mw-pt/_src/eidmw/applayer/APLCertif.cpp
+@@ -1896,7 +1896,8 @@ APL_CertifStatus APL_OcspResponse::getResponse(CByteArray *response)
  	}
  	else
  	{
@@ -29,10 +29,10 @@ index 7ed8e75..9a79f70 100644
  	}
  
  	if(response)
-diff --git a/applayer/MiscUtil.cpp b/applayer/MiscUtil.cpp
-index d194e38..b579de3 100644
---- a/applayer/MiscUtil.cpp
-+++ b/applayer/MiscUtil.cpp
+diff --git a/pteid-mw-pt/_src/eidmw/applayer/MiscUtil.cpp b/pteid-mw-pt/_src/eidmw/applayer/MiscUtil.cpp
+index 74e83c30..e8a479de 100644
+--- a/pteid-mw-pt/_src/eidmw/applayer/MiscUtil.cpp
++++ b/pteid-mw-pt/_src/eidmw/applayer/MiscUtil.cpp
 @@ -23,6 +23,7 @@
  #include <openssl/evp.h>
  #include <openssl/buffer.h>
@@ -113,10 +113,10 @@ index d194e38..b579de3 100644
      return pem;
  }
  
-diff --git a/applayer/SAM.cpp b/applayer/SAM.cpp
-index 5601220..3adcc75 100644
---- a/applayer/SAM.cpp
-+++ b/applayer/SAM.cpp
+diff --git a/pteid-mw-pt/_src/eidmw/applayer/SAM.cpp b/pteid-mw-pt/_src/eidmw/applayer/SAM.cpp
+index 56012200..3adcc75c 100644
+--- a/pteid-mw-pt/_src/eidmw/applayer/SAM.cpp
++++ b/pteid-mw-pt/_src/eidmw/applayer/SAM.cpp
 @@ -114,10 +114,13 @@ char * SAM::_getCVCPublicKey()
  	unsigned char * mod_bytes = cvc_modulus.GetBytes();
  	unsigned char * exp_bytes = cvc_exponent.GetBytes();
@@ -239,10 +239,10 @@ index 5601220..3adcc75 100644
  }
  
  
-diff --git a/applayer/SSLConnection.cpp b/applayer/SSLConnection.cpp
-index e82bbad..6e723ef 100644
---- a/applayer/SSLConnection.cpp
-+++ b/applayer/SSLConnection.cpp
+diff --git a/pteid-mw-pt/_src/eidmw/applayer/SSLConnection.cpp b/pteid-mw-pt/_src/eidmw/applayer/SSLConnection.cpp
+index edac2e63..501a0cd2 100644
+--- a/pteid-mw-pt/_src/eidmw/applayer/SSLConnection.cpp
++++ b/pteid-mw-pt/_src/eidmw/applayer/SSLConnection.cpp
 @@ -158,15 +158,15 @@ void SSLConnection::loadCertChain(X509_STORE *store, APL_Certif * authentication
  
  		if (issuer == NULL)
@@ -315,10 +315,10 @@ index e82bbad..6e723ef 100644
 +
 +}
 \ No newline at end of file
-diff --git a/applayer/SecurityContext.cpp b/applayer/SecurityContext.cpp
-index cf52a91..5d1806f 100644
---- a/applayer/SecurityContext.cpp
-+++ b/applayer/SecurityContext.cpp
+diff --git a/pteid-mw-pt/_src/eidmw/applayer/SecurityContext.cpp b/pteid-mw-pt/_src/eidmw/applayer/SecurityContext.cpp
+index cf52a918..5d1806f1 100644
+--- a/pteid-mw-pt/_src/eidmw/applayer/SecurityContext.cpp
++++ b/pteid-mw-pt/_src/eidmw/applayer/SecurityContext.cpp
 @@ -130,11 +130,11 @@ namespace eIDMW
  
  		unsigned char ssc_block[] = {0,0,0,0,0,0,0,0};
@@ -529,10 +529,10 @@ index cf52a91..5d1806f 100644
  	}
  
  	bool SecurityContext::writeFile(char *fileID, CByteArray file_content, unsigned int offset)
-diff --git a/applayer/cryptoFramework.cpp b/applayer/cryptoFramework.cpp
-index 8216374..5a275f7 100644
---- a/applayer/cryptoFramework.cpp
-+++ b/applayer/cryptoFramework.cpp
+diff --git a/pteid-mw-pt/_src/eidmw/applayer/cryptoFramework.cpp b/pteid-mw-pt/_src/eidmw/applayer/cryptoFramework.cpp
+index e58523d6..70c84230 100644
+--- a/pteid-mw-pt/_src/eidmw/applayer/cryptoFramework.cpp
++++ b/pteid-mw-pt/_src/eidmw/applayer/cryptoFramework.cpp
 @@ -288,7 +288,7 @@ bool APL_CryptoFwk::VerifyCrlDateValidity(const CByteArray &crl)
  	return bOk;
  }
@@ -622,7 +622,7 @@ index 8216374..5a275f7 100644
  const EVP_MD *APL_CryptoFwk::ConvertAlgorithm(FWK_HashAlgo algo)
  {
  	switch(algo)
-@@ -567,19 +536,21 @@ bool APL_CryptoFwk::GetHash(const CByteArray &data, const EVP_MD *algorithm, CBy
+@@ -581,19 +550,21 @@ bool APL_CryptoFwk::GetHash(const CByteArray &data, const EVP_MD *algorithm, CBy
  	if(hash==NULL)
  		throw CMWEXCEPTION(EIDMW_ERR_CHECK);
  
@@ -648,7 +648,7 @@ index 8216374..5a275f7 100644
  	return true;
  
  }
-@@ -606,28 +577,28 @@ bool APL_CryptoFwk::VerifySignatureSha1(const CByteArray &data, const CByteArray
+@@ -620,28 +591,28 @@ bool APL_CryptoFwk::VerifySignatureSha1(const CByteArray &data, const CByteArray
  
  bool APL_CryptoFwk::VerifySignature(const CByteArray &data, const CByteArray &signature, X509 *pX509, const EVP_MD *algorithm)
  {
@@ -689,7 +689,7 @@ index 8216374..5a275f7 100644
  
  	return (ret==1);
  }
-@@ -670,7 +641,7 @@ FWK_CertifStatus APL_CryptoFwk::CRLValidation(const CByteArray &cert,const CByte
+@@ -684,7 +655,7 @@ FWK_CertifStatus APL_CryptoFwk::CRLValidation(const CByteArray &cert,const CByte
  		for(int i = 0; i < sk_X509_REVOKED_num(pRevokeds); i++)
  		{
  			X509_REVOKED *pRevoked = sk_X509_REVOKED_value(pRevokeds, i);
@@ -698,7 +698,7 @@ index 8216374..5a275f7 100644
  			{
  				bFound=true;
  				break;
-@@ -760,158 +731,6 @@ cleanup:
+@@ -774,158 +745,6 @@ cleanup:
  	return eStatus;
  }
  
@@ -857,7 +857,7 @@ index 8216374..5a275f7 100644
  FWK_CertifStatus APL_CryptoFwk::GetOCSPResponse(X509 *pX509_Cert,X509 *pX509_Issuer, OCSP_RESPONSE **pResponse)
  {
  	if(pX509_Cert==NULL || pX509_Issuer==NULL)
-@@ -1149,78 +968,26 @@ FWK_CertifStatus APL_CryptoFwk::GetOCSPResponse(const char *pUrlResponder,OCSP_C
+@@ -1163,78 +982,26 @@ FWK_CertifStatus APL_CryptoFwk::GetOCSPResponse(const char *pUrlResponder,OCSP_C
  			pX509 = d2i_X509(&pX509, &p, sod_ca->getData().Size());
  			X509_STORE_add_cert(store, pX509);
  			//fprintf(stderr, "OCSP: Adding CA %s\n", X509_NAME_oneline(X509_get_subject_name(pX509), 0, 0));
@@ -932,11 +932,11 @@ index 8216374..5a275f7 100644
 -				X509_STORE_CTX_init(verify_ctx, store, pX509, NULL);
 -				//fprintf(stderr, "OCSP: Next we're going to verify cert: %s\n", X509_NAME_oneline(X509_get_subject_name(pX509), 0, 0));
 -				int ret_validation = X509_verify_cert(verify_ctx);
-+				*/
- 
+-
 -				if (ret_validation < 1)
 -				{
--
++				*/
+ 
 -					MWLOG(LEV_DEBUG, MOD_APL, "Couldn't validate OCSP certificate using builtin roots. Trying issuer...");
 -					//eStatus = FWK_CERTIF_STATUS_ERROR;
 -				}
@@ -951,31 +951,7 @@ index 8216374..5a275f7 100644
  			}
  		
  		}
-@@ -1536,8 +1303,8 @@ BIO *APL_CryptoFwk::Connect(char *pszHost, int iPort, int iSSL, SSL_CTX **ppSSLC
- 	if (iSSL)
- 	{
- 		OpenSSL_add_all_algorithms();
--		SSL_library_init();
--		SSL_load_error_strings();
-+		SSL_library_init();
-+		SSL_load_error_strings();
- 		ERR_load_BIO_strings();
- 
- 		SSL_CTX *pSSLCtx = SSL_CTX_new(TLSv1_1_client_method());
-@@ -1547,9 +1314,9 @@ BIO *APL_CryptoFwk::Connect(char *pszHost, int iPort, int iSSL, SSL_CTX **ppSSLC
- 		//This will only load root certs for Linux
- 		SSL_CTX_set_default_verify_paths(pSSLCtx);
- 
--		SSL_CTX_set_options(pSSLCtx, SSL_OP_NO_TICKET | SSL_OP_NO_SSLv2);
--
--#ifndef __APPLE__
-+		SSL_CTX_set_options(pSSLCtx, SSL_OP_NO_TICKET | SSL_OP_NO_SSLv2);
-+
-+#ifndef __APPLE__
- 		SSL_CTX_set_verify(pSSLCtx, SSL_VERIFY_PEER, NULL);
- #endif
- 
-@@ -1568,8 +1335,21 @@ BIO *APL_CryptoFwk::Connect(char *pszHost, int iPort, int iSSL, SSL_CTX **ppSSLC
+@@ -1582,8 +1349,21 @@ BIO *APL_CryptoFwk::Connect(char *pszHost, int iPort, int iSSL, SSL_CTX **ppSSLC
  		}
  	}
  
@@ -999,10 +975,10 @@ index 8216374..5a275f7 100644
  	BIO_set_nbio(pConnect, 1);
  
  	int rv = BIO_do_connect(pConnect);
-diff --git a/applayer/cryptoFramework.h b/applayer/cryptoFramework.h
-index 667dcc1..2ef11c1 100644
---- a/applayer/cryptoFramework.h
-+++ b/applayer/cryptoFramework.h
+diff --git a/pteid-mw-pt/_src/eidmw/applayer/cryptoFramework.h b/pteid-mw-pt/_src/eidmw/applayer/cryptoFramework.h
+index 667dcc14..2ef11c1f 100644
+--- a/pteid-mw-pt/_src/eidmw/applayer/cryptoFramework.h
++++ b/pteid-mw-pt/_src/eidmw/applayer/cryptoFramework.h
 @@ -227,14 +227,6 @@ public:
  	  */
  	FWK_CertifStatus GetOCSPResponse(const CByteArray &cert, const CByteArray &issuer, CByteArray *response);
@@ -1027,10 +1003,10 @@ index 667dcc1..2ef11c1 100644
  
  	/**
  	  * Check if the crl has the issuer (issuer)
-diff --git a/applayer/sign-pkcs7.cpp b/applayer/sign-pkcs7.cpp
-index 9144466..ca157a9 100644
---- a/applayer/sign-pkcs7.cpp
-+++ b/applayer/sign-pkcs7.cpp
+diff --git a/pteid-mw-pt/_src/eidmw/applayer/sign-pkcs7.cpp b/pteid-mw-pt/_src/eidmw/applayer/sign-pkcs7.cpp
+index 6dce4c83..cd161ddd 100644
+--- a/pteid-mw-pt/_src/eidmw/applayer/sign-pkcs7.cpp
++++ b/pteid-mw-pt/_src/eidmw/applayer/sign-pkcs7.cpp
 @@ -111,31 +111,33 @@ void add_signed_time(PKCS7_SIGNER_INFO *si)
  unsigned int SHA256_Wrapper(unsigned char *data, unsigned long data_len, unsigned char *digest)
  {
@@ -1153,7 +1129,7 @@ index 9144466..ca157a9 100644
 +#endif //OPENSSL_VERSION_NUMBER	
  }
  
- void addCertificateChain(PKCS7 *p7) 
+ void addCardCertificateChain(PKCS7 *p7) 
 -- 
 2.21.0
 

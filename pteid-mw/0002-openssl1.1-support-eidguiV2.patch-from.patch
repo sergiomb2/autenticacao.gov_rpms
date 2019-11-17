@@ -1,0 +1,40 @@
+From d4314d60a331d0c039f619ebada1592fedcaa54c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=A9rgio=20M=2E=20Basto?= <sergio@serjux.com>
+Date: Sat, 16 Nov 2019 04:17:38 +0000
+Subject: [PATCH 2/5] openssl1.1-support-eidguiV2.patch from
+
+https://build.opensuse.org/package/show/home:emberez/pteid-mw
+---
+ .../_src/eidmw/eidguiV2/pdfsignatureclient.cpp        | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/pteid-mw-pt/_src/eidmw/eidguiV2/pdfsignatureclient.cpp b/pteid-mw-pt/_src/eidmw/eidguiV2/pdfsignatureclient.cpp
+index f132d1cc..df54c9e1 100644
+--- a/pteid-mw-pt/_src/eidmw/eidguiV2/pdfsignatureclient.cpp
++++ b/pteid-mw-pt/_src/eidmw/eidguiV2/pdfsignatureclient.cpp
+@@ -57,16 +57,17 @@ ns1__AttributeType *convertAttributeType(ns3__AttributeType *, soap *);
+ unsigned int SHA256_Wrapper(unsigned char *data, unsigned long data_len, unsigned char *digest)
+ {
+ 
+-    EVP_MD_CTX cmd_ctx;
++    EVP_MD_CTX *cmd_ctx = EVP_MD_CTX_new();
+     unsigned int md_len = 0;
+ 
+     //Calculate the hash from the data
+-    EVP_DigestInit(&cmd_ctx, EVP_sha256());
+-    EVP_DigestUpdate(&cmd_ctx, data, data_len);
+-    EVP_DigestFinal(&cmd_ctx, digest, &md_len);
++    EVP_DigestInit(cmd_ctx, EVP_sha256());
++    EVP_DigestUpdate(cmd_ctx, data, data_len);
++    EVP_DigestFinal(cmd_ctx, digest, &md_len);
+ 
+-    return md_len;
++    EVP_MD_CTX_free(cmd_ctx);
+ 
++    return md_len;
+ }
+ 
+ void loadPkcs7Object(QByteArray &sigBinary, SignatureDetails &sigDetails)
+-- 
+2.21.0
+
