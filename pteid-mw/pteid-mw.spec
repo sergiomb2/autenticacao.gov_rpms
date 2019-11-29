@@ -22,13 +22,14 @@
 %endif
 %endif
 
-%define svn_revision 5840
-
 Name:           pteid-mw
-BuildRequires:  pcsc-lite-devel make swig
+BuildRequires:  pcsc-lite-devel
+BuildRequires:  make
+BuildRequires:  swig
 BuildRequires:  libzip-devel
 BuildRequires:  openjpeg2-devel
-Requires:       pcsc-lite curl
+Requires:       pcsc-lite
+Requires:       curl
 
 
 %if 0%{?suse_version}
@@ -51,26 +52,28 @@ BuildRequires:  libxml-security-c-devel
 %endif
 
 %if 0%{?fedora} || 0%{?centos_ver}
+BuildRequires:  gcc-c++
 BuildRequires:  java-1.8.0-openjdk-devel
-Requires:       poppler-qt5
-Requires:       pcsc-lite-ccid
-Requires:       qt5
 
 BuildRequires:  qt5-qtbase-devel
 BuildRequires:  qt5-qtdeclarative-devel
 BuildRequires:  qt5-qtquickcontrols2-devel
 BuildRequires:  qt5-qttools-devel
-#Just install the big qt5 meta-package
-BuildRequires:  qt5
 BuildRequires:  libpng-devel
 
-BuildRequires:  xml-security-c-devel
-BuildRequires:  poppler-qt5-devel
-BuildRequires:  cairo-devel gcc gcc-c++ xerces-c-devel
-BuildRequires:  qt-devel pcsc-lite-ccid curl-devel
-
+BuildRequires:  cairo-devel
+BuildRequires:  curl-devel
 BuildRequires:  openssl-devel
+BuildRequires:  pcsc-lite-ccid
+BuildRequires:  poppler-qt5-devel
+BuildRequires:  xerces-c-devel
+BuildRequires:  xml-security-c-devel
 
+#BuildRequires: kf5-kinit-devel
+%{?kf5_kinit_requires}
+
+Requires:       poppler-qt5
+Requires:       pcsc-lite-ccid
 %endif
 
 Conflicts:  cartao_de_cidadao
@@ -79,9 +82,9 @@ License:        GPLv2+
 Group:          System/Libraries
 Version:        3.0.20
 %if 0%{?fedora}
-Release:        1%{?dist}
+Release:        2%{?dist}
 %else
-Release:        1
+Release:        2
 %endif
 Summary:        Portuguese eID middleware
 Url:            https://svn.gov.pt/projects/ccidadao/
@@ -111,7 +114,15 @@ Requires(postun): /usr/bin/gtk-update-icon-cache
  in certain websites and sign documents.
 
 %prep
-%autosetup -p1 -n autenticacao.gov-3.0.20
+%setup -q -n autenticacao.gov-3.0.20
+%if 0%{?fedora} || 0%{?rhel} >= 8
+%patch1 -p1
+%patch2 -p1
+%endif
+%patch3 -p1
+%patch4 -p1
+%patch5 -p1
+
 cd ..
 mv autenticacao.gov-3.0.20 autenticacao.gov-3.0.20.tmp
 mv autenticacao.gov-3.0.20.tmp/pteid-mw-pt/_src/eidmw/ autenticacao.gov-3.0.20
@@ -287,6 +298,15 @@ fi
 /usr/local/share/certs
 
 %changelog
+* Fri Nov 29 2019 Sérgio Basto <sergio@serjux.com> - 3.0.20-2
+- Enable build for epel 7 and epel 8 build with or higher:
+  libzip 1.5.2-1
+  poppler 0.66.0-11
+  poppler-data 0.4.9-1
+  xalan-c 	1.11.0-16
+  xerces-c 	3.2.2-3
+  xml-security-c 2.0.2-4 (patched)
+
 * Sun Nov 17 2019 Sérgio Basto <sergio@serjux.com> - 3.0.20-1
 - 3.0.20
 
