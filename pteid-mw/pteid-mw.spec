@@ -80,11 +80,11 @@ Conflicts:  cartao_de_cidadao
 
 License:        GPLv2+
 Group:          System/Libraries
-Version:        3.0.20
+Version:        3.0.21
 %if 0%{?fedora}
-Release:        2%{?dist}
+Release:        1%{?dist}
 %else
-Release:        2
+Release:        1%{?dist}
 %endif
 Summary:        Portuguese eID middleware
 Url:            https://svn.gov.pt/projects/ccidadao/
@@ -95,6 +95,8 @@ Patch2:         0002-openssl1.1-support-eidguiV2.patch-from.patch
 Patch3:         0003-Support-xml-security-c-2.0.2.patch
 Patch4:         0004-add-pt.gov.autenticacao.appdata.xml.patch
 Patch5:         0005-Fedora-30-Qt-Fixup-for.patch
+Patch6:         6d7c7a86eb54a85f5796488a7d7cc92dbaa87f28.patch
+Patch7:         31491690ebce937fbd7fa167767e0cc6308ec66c.patch
 
 
 %if 0%{?suse_version}
@@ -114,7 +116,7 @@ Requires(postun): /usr/bin/gtk-update-icon-cache
  in certain websites and sign documents.
 
 %prep
-%setup -q -n autenticacao.gov-3.0.20
+%setup -q -n autenticacao.gov-%{version}
 %if 0%{?fedora} || 0%{?rhel} >= 8
 %patch1 -p1
 %patch2 -p1
@@ -122,11 +124,13 @@ Requires(postun): /usr/bin/gtk-update-icon-cache
 %patch3 -p1
 %patch4 -p1
 %patch5 -p1
+%patch6 -p1
+%patch7 -p1
 
 cd ..
-mv autenticacao.gov-3.0.20 autenticacao.gov-3.0.20.tmp
-mv autenticacao.gov-3.0.20.tmp/pteid-mw-pt/_src/eidmw/ autenticacao.gov-3.0.20
-cd autenticacao.gov-3.0.20
+mv autenticacao.gov-%{version} autenticacao.gov-%{version}.tmp
+mv autenticacao.gov-%{version}.tmp/pteid-mw-pt/_src/eidmw/ autenticacao.gov-%{version}
+cd autenticacao.gov-%{version}
 
 # create dirs that git doesn't
 #mkdir lib jar
@@ -296,6 +300,9 @@ fi
 /usr/local/share/certs
 
 %changelog
+* Sun Dec 01 2019 Sérgio Basto <sergio@serjux.com> - 3.0.21-1
+- 3.0.21
+
 * Fri Nov 29 2019 Sérgio Basto <sergio@serjux.com> - 3.0.20-2
 - Enable build for epel 7 and epel 8 build with or higher:
   libzip 1.5.2-1
