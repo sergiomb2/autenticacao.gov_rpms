@@ -51,7 +51,7 @@ BuildRequires:  libQt5Gui-private-headers-devel
 BuildRequires:  libxml-security-c-devel
 %endif
 
-%if 0%{?fedora} || 0%{?centos_ver}
+%if 0%{?fedora} || 0%{?rhel}
 BuildRequires:  gcc-c++
 BuildRequires:  java-1.8.0-openjdk-devel
 
@@ -82,9 +82,9 @@ License:        GPLv2+
 Group:          System/Libraries
 Version:        3.0.21
 %if 0%{?fedora}
-Release:        1%{?dist}
+Release:        2%{?dist}
 %else
-Release:        1%{?dist}
+Release:        2%{?dist}
 %endif
 Summary:        Portuguese eID middleware
 Url:            https://svn.gov.pt/projects/ccidadao/
@@ -136,6 +136,13 @@ cd autenticacao.gov-%{version}
 #mkdir lib jar
 mkdir -p eidlibJava/class
 
+#fix file permissions
+find CMD -perm -o=x -type f -exec chmod 644 {} ';'
+find applayer -perm -o=x -type f -exec chmod 644 {} ';'
+find cardlayer -perm -o=x -type f -exec chmod 644 {} ';'
+find misc -perm -o=x -type f -exec chmod 644 {} ';'
+find eidguiV2 -perm -o=x -type f -exec chmod 644 {} ';'
+
 
 %build
 %if 0%{?suse_version}
@@ -149,44 +156,19 @@ qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib/jvm/java-1.8.0-ope
 
 %if 0%{?fedora} || 0%{?rhel}
 # ./configure_fedora.sh
-qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib/jvm/java-1.8.0-openjdk/include/ /usr/lib/jvm/java-1.8.0-openjdk/include/linux/" pteid-mw.pro
+# %%qmake_qt5 does not strip debug symbols
+%qmake_qt5 PKG_NAME=pteid PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-1.8.0-openjdk/include/ /usr/lib/jvm/java-1.8.0-openjdk/include/linux/" pteid-mw.pro
 %endif
 
 make %{?jobs:-j%jobs}
 
 %install
-
 #install libs
 mkdir -p $RPM_BUILD_ROOT/usr/local/lib/
-install -m 755 -p lib/libpteidcommon.so.2.0.0 $RPM_BUILD_ROOT/usr/local/lib/libpteidcommon.so.2.0.0
-install -m 755 -p lib/libpteiddialogsQT.so.2.0.0 $RPM_BUILD_ROOT/usr/local/lib/libpteiddialogsQT.so.2.0.0
-install -m 755 -p lib/libpteidcardlayer.so.2.0.0 $RPM_BUILD_ROOT/usr/local/lib/libpteidcardlayer.so.2.0.0
-install -m 755 -p lib/libpteidpkcs11.so.2.0.0 $RPM_BUILD_ROOT/usr/local/lib/libpteidpkcs11.so.2.0.0
-install -m 755 -p lib/libpteidapplayer.so.2.0.0 $RPM_BUILD_ROOT/usr/local/lib/libpteidapplayer.so.2.0.0
-install -m 755 -p lib/libpteidlib.so.2.0.0 $RPM_BUILD_ROOT/usr/local/lib/libpteidlib.so.2.0.0
-install -m 755 -p lib/libpteidlibj.so.2.0.0 $RPM_BUILD_ROOT/usr/local/lib/libpteidlibj.so.2.0.0
-install -m 755 -p lib/libCMDServices.so.1.0.0 $RPM_BUILD_ROOT/usr/local/lib/libCMDServices.so.1.0.0
+make install INSTALL_ROOT=$RPM_BUILD_ROOT
 
-#install header files
-mkdir -p $RPM_BUILD_ROOT/usr/local/include
-install -m 644 eidlib/eidlib.h $RPM_BUILD_ROOT/usr/local/include/
-install -m 644 eidlib/eidlibcompat.h $RPM_BUILD_ROOT/usr/local/include/
-install -m 644 eidlib/eidlibdefines.h $RPM_BUILD_ROOT/usr/local/include/
-install -m 644 eidlib/eidlibException.h $RPM_BUILD_ROOT/usr/local/include/
-install -m 644 common/eidErrors.h $RPM_BUILD_ROOT/usr/local/include/
-
-mkdir -p $RPM_BUILD_ROOT/usr/local/share/certs/
-install -m 755 -p misc/certs/*.der $RPM_BUILD_ROOT/usr/local/share/certs/
-
-mkdir -p $RPM_BUILD_ROOT/usr/local/lib/pteid_jni/
-install -m 755 -p jar/pteidlibj.jar $RPM_BUILD_ROOT/usr/local/lib/pteid_jni/
-
-mkdir -p $RPM_BUILD_ROOT/usr/local/bin/
-install -m 755 eidguiV2/eidguiV2 $RPM_BUILD_ROOT/usr/local/bin/eidguiV2
-
-install -m 755 -p bin/pteiddialogsQTsrv $RPM_BUILD_ROOT/usr/local/bin/pteiddialogsQTsrv
-install -m 644 -p eidguiV2/eidmw_en.qm $RPM_BUILD_ROOT/usr/local/bin/
-install -m 644 -p eidguiV2/eidmw_nl.qm $RPM_BUILD_ROOT/usr/local/bin/
+mkdir -p $RPM_BUILD_ROOT%{_jnidir}/
+install -m 755 -p jar/pteidlibj.jar $RPM_BUILD_ROOT%{_jnidir}/
 
 mkdir -p $RPM_BUILD_ROOT/usr/share/applications
 install -m 644 debian/pteid-mw-gui.desktop $RPM_BUILD_ROOT/usr/share/applications
@@ -196,50 +178,33 @@ install -m 644 -p debian/pteid-scalable.svg $RPM_BUILD_ROOT/usr/share/icons/hico
 
 mkdir -p $RPM_BUILD_ROOT/usr/share/pixmaps
 install -m 644 -p debian/pteid-signature.png $RPM_BUILD_ROOT/usr/share/pixmaps
-mkdir -p $RPM_BUILD_ROOT/usr/share/mime/packages
+
+mkdir -p $RPM_BUILD_ROOT/usr/share/icons/hicolor/64x64/mimetypes/
+ln -s -f ../../../../pixmaps/pteid-signature.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/64x64/mimetypes/application-x-signedcc.png
+ln -s -f ../../../../pixmaps/pteid-signature.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/64x64/mimetypes/gnome-mime-application-x-signedcc.png
+
+%if 0%{?fedora} || 0%{?rhel}
+mkdir -p $RPM_BUILD_ROOT/etc/ld.so.conf.d/
+echo "/usr/local/lib" > $RPM_BUILD_ROOT/etc/ld.so.conf.d/pteid.conf
+%endif
+
+#mkdir -p $RPM_BUILD_ROOT/usr/share/mime/packages
 
 %if 0%{?suse_version}
  %suse_update_desktop_file -i pteid-mw-gui Office Presentation
   export NO_BRP_CHECK_RPATH=true
 %endif
 
+
 %post
-ln -s -f /usr/local/lib/libpteidcommon.so.2.0.0 /usr/local/lib/libpteidcommon.so
-ln -s -f /usr/local/lib/libpteidcommon.so.2.0.0 /usr/local/lib/libpteidcommon.so.2
-ln -s -f /usr/local/lib/libpteidcommon.so.2.0.0 /usr/local/lib/libpteidcommon.so.2.0
-ln -s -f /usr/local/lib/libpteiddialogsQT.so.2.0.0 /usr/local/lib/libpteiddialogsQT.so
-ln -s -f /usr/local/lib/libpteiddialogsQT.so.2.0.0 /usr/local/lib/libpteiddialogsQT.so.2
-ln -s -f /usr/local/lib/libpteiddialogsQT.so.2.0.0 /usr/local/lib/libpteiddialogsQT.so.2.0
-ln -s -f /usr/local/lib/libpteidcardlayer.so.2.0.0 /usr/local/lib/libpteidcardlayer.so
-ln -s -f /usr/local/lib/libpteidcardlayer.so.2.0.0 /usr/local/lib/libpteidcardlayer.so.2
-ln -s -f /usr/local/lib/libpteidcardlayer.so.2.0.0 /usr/local/lib/libpteidcardlayer.so.2.0
-ln -s -f /usr/local/lib/libpteidpkcs11.so.2.0.0 /usr/local/lib/libpteidpkcs11.so
-ln -s -f /usr/local/lib/libpteidpkcs11.so.2.0.0 /usr/local/lib/libpteidpkcs11.so.2
-ln -s -f /usr/local/lib/libpteidpkcs11.so.2.0.0 /usr/local/lib/libpteidpkcs11.so.2.0
-ln -s -f /usr/local/lib/libpteidapplayer.so.2.0.0 /usr/local/lib/libpteidapplayer.so
-ln -s -f /usr/local/lib/libpteidapplayer.so.2.0.0 /usr/local/lib/libpteidapplayer.so.2
-ln -s -f /usr/local/lib/libpteidapplayer.so.2.0.0 /usr/local/lib/libpteidapplayer.so.2.0
-ln -s -f /usr/local/lib/libpteidlib.so.2.0.0 /usr/local/lib/libpteidlib.so
-ln -s -f /usr/local/lib/libpteidlib.so.2.0.0 /usr/local/lib/libpteidlib.so.2
-ln -s -f /usr/local/lib/libpteidlib.so.2.0.0 /usr/local/lib/libpteidlib.so.2.0
-ln -s -f /usr/local/lib/libCMDServices.so.1.0.0 /usr/local/lib/libCMDServices.so
-ln -s -f /usr/local/lib/libCMDServices.so.1.0.0 /usr/local/lib/libCMDServices.so.1
-ln -s -f /usr/local/lib/libCMDServices.so.1.0.0 /usr/local/lib/libCMDServices.so.1.0
-
-ln -s -f /usr/share/pixmaps/pteid-signature.png /usr/share/icons/hicolor/64x64/mimetypes/application-x-signedcc.png
-ln -s -f /usr/share/pixmaps/pteid-signature.png /usr/share/icons/hicolor/64x64/mimetypes/gnome-mime-application-x-signedcc.png
-
-%if 0%{?fedora} || 0%{?centos_version}
-# BLURP: Add usr local to ldconf
-
-echo "/usr/local/lib" > /etc/ld.so.conf.d/pteid.conf
+%if 0%{?fedora} || 0%{?rhel}
 # MDV still uses old pcscd services
 if [ -x /etc/init.d/pcscd ]
 then
   /etc/init.d/pcscd restart
 fi
 
-%if 0%{?fedora} >= 16
+%if 0%{?fedora} >= 16 || 0%{?rhel} >= 8
 systemctl restart pcscd.service
 %endif
 %endif
@@ -256,39 +221,15 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 
 %postun
 if [ "$1" = "0" ]; then
-rm -rf /usr/local/lib/libpteidcommon.so
-rm -rf /usr/local/lib/libpteidcommon.so.2
-rm -rf /usr/local/lib/libpteidcommon.so.2.0
-rm -rf /usr/local/lib/libpteiddialogsQT.so
-rm -rf /usr/local/lib/libpteiddialogsQT.so.2
-rm -rf /usr/local/lib/libpteiddialogsQT.so.2.2
-rm -rf /usr/local/lib/libpteidcardlayer.so
-rm -rf /usr/local/lib/libpteidcardlayer.so.2
-rm -rf /usr/local/lib/libpteidcardlayer.so.2.0
-rm -rf /usr/local/lib/libpteidpkcs11.so
-rm -rf /usr/local/lib/libpteidpkcs11.so.2
-rm -rf /usr/local/lib/libpteidpkcs11.so.2.0
-rm -rf /usr/local/lib/libpteidapplayer.so
-rm -rf /usr/local/lib/libpteidapplayer.so.2
-rm -rf /usr/local/lib/libpteidapplayer.so.2.0
-rm -rf /usr/local/lib/libpteidlib.so
-rm -rf /usr/local/lib/libpteidlib.so.2
-rm -rf /usr/local/lib/libpteidlib.so.2.0
-
-rm -rf /usr/share/icons/hicolor/64x64/mimetypes/application-x-signedcc.png
-rm -rf /usr/share/icons/hicolor/64x64/mimetypes/gnome-mime-application-x-signedcc.png
-
-%if 0%{?fedora} || 0%{?centos_version}
-rm -rf /etc/ld.so.conf.d/pteid.conf
-%endif
-
 gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 /sbin/ldconfig > /dev/null 2>&1
 fi
 
 %files
 %defattr(-,root,root)
+/etc/ld.so.conf.d/pteid.conf
 /usr/local/lib/*
+#/usr/local/lib/libpteid-poppler.a
 /usr/local/bin/eidguiV2
 /usr/local/bin/pteiddialogsQTsrv
 /usr/local/bin/eidmw_en.qm
@@ -297,9 +238,14 @@ fi
 /usr/share/applications/*
 /usr/share/icons/*
 /usr/share/pixmaps/*
-/usr/local/share/certs
+/usr/local/share/certs/
+/usr/local/share/pteid-mw/www/
+%{_jnidir}/*
 
 %changelog
+* Mon Dec 02 2019 Sérgio Basto <sergio@serjux.com> - 3.0.21-2
+- Better spec file using make install
+
 * Sun Dec 01 2019 Sérgio Basto <sergio@serjux.com> - 3.0.21-1
 - 3.0.21
 
