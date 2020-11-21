@@ -14,6 +14,8 @@
 
 
 # norootforbuild
+#Blame xml-security so
+#AutoReq: no
 
 #Disable suse-specific checks: there is no way to disable just the lib64 check
 %if 0%{?suse_version}
@@ -23,6 +25,15 @@
 %endif
 
 Name:           pteid-mw
+License:        GPLv2+
+Group:          System/Libraries
+Version:        3.3.1
+Release:        1%{?dist}
+Summary:        Portuguese eID middleware
+Url:            https://github.com/amagovpt/autenticacao.gov
+Vendor:         Portuguese Government
+Source0:        https://github.com/amagovpt/autenticacao.gov/archive/v%{version}/autenticacao.gov-%{version}.tar.gz
+
 BuildRequires:  pcsc-lite-devel
 BuildRequires:  make
 BuildRequires:  swig
@@ -30,37 +41,39 @@ BuildRequires:  libzip-devel
 BuildRequires:  openjpeg2-devel
 Requires:       pcsc-lite
 Requires:       curl
-
-
-%if 0%{?suse_version}
-BuildRequires:  libcurl-devel libxerces-c-devel libopenssl-devel
-
-Requires: pcsc-ccid xerces-c libqt5-qtquickcontrols libqt5-qtgraphicaleffects
-%endif
+Requires(post): /usr/bin/gtk-update-icon-cache
+Requires(postun): /usr/bin/gtk-update-icon-cache
+Conflicts:  cartao_de_cidadao
 
 %if 0%{?suse_version}
 BuildRequires:  java-1_8_0-openjdk-devel
-BuildRequires:  libpoppler-qt5-devel
 BuildRequires:  libqt5-qtbase-devel
-BuildRequires:  libqt5-qttools-devel
 BuildRequires:  libqt5-qtdeclarative-devel
 BuildRequires:  libqt5-qtquickcontrols2
+BuildRequires:  libqt5-qttools-devel
 BuildRequires:  libQt5QuickControls2-devel
 BuildRequires:  libQt5Gui-private-headers-devel
-
 BuildRequires:  libxml-security-c-devel
+BuildRequires:  libcurl-devel
+BuildRequires:  libpoppler-qt5-devel
+BuildRequires:  libxerces-c-devel
+BuildRequires:  libopenssl-devel
+BuildRequires:  update-desktop-files
+BuildRequires:  unzip
+Requires: pcsc-ccid
+Requires: xerces-c
+Requires: libqt5-qtquickcontrols
+Requires: libqt5-qtgraphicaleffects
 %endif
 
 %if 0%{?fedora} || 0%{?rhel}
 BuildRequires:  gcc-c++
 BuildRequires:  java-1.8.0-openjdk-devel
-
 BuildRequires:  qt5-qtbase-devel
 BuildRequires:  qt5-qtdeclarative-devel
 BuildRequires:  qt5-qtquickcontrols2-devel
 BuildRequires:  qt5-qttools-devel
 BuildRequires:  libpng-devel
-
 BuildRequires:  cairo-devel
 BuildRequires:  curl-devel
 BuildRequires:  openssl-devel
@@ -68,46 +81,14 @@ BuildRequires:  pcsc-lite-ccid
 BuildRequires:  poppler-qt5-devel
 BuildRequires:  xerces-c-devel
 BuildRequires:  xml-security-c-devel
-
-#BuildRequires: kf5-kinit-devel
-%{?kf5_kinit_requires}
-
+BuildRequires:  desktop-file-utils
 Requires:       poppler-qt5
 Requires:       pcsc-lite-ccid
+Requires:       hicolor-icon-theme
+#BuildRequires: kf5-kinit-devel
+%{?kf5_kinit_requires}
 %endif
 
-Conflicts:  cartao_de_cidadao
-
-License:        GPLv2+
-Group:          System/Libraries
-Version:        3.0.21
-%if 0%{?fedora}
-Release:        2%{?dist}
-%else
-Release:        2%{?dist}
-%endif
-Summary:        Portuguese eID middleware
-Url:            https://svn.gov.pt/projects/ccidadao/
-Vendor:         Portuguese Government
-Source0:        https://github.com/amagovpt/autenticacao.gov/archive/v%{version}/autenticacao.gov-%{version}.tar.gz
-Patch1:         0001-Support-openssl-1.1.patch-from.patch
-Patch2:         0002-openssl1.1-support-eidguiV2.patch-from.patch
-Patch3:         0003-Support-xml-security-c-2.0.2.patch
-Patch4:         0004-add-pt.gov.autenticacao.appdata.xml.patch
-Patch5:         0005-Fedora-30-Qt-Fixup-for.patch
-Patch6:         6d7c7a86eb54a85f5796488a7d7cc92dbaa87f28.patch
-Patch7:         31491690ebce937fbd7fa167767e0cc6308ec66c.patch
-
-
-%if 0%{?suse_version}
-BuildRequires:  update-desktop-files unzip
-%endif
-
-#Blame xml-security so
-#AutoReq: no
-
-Requires(post): /usr/bin/gtk-update-icon-cache
-Requires(postun): /usr/bin/gtk-update-icon-cache
 
 %description
  The Autenticação.Gov package provides a utility application (eidguiV2), a set of
@@ -118,14 +99,14 @@ Requires(postun): /usr/bin/gtk-update-icon-cache
 %prep
 %setup -q -n autenticacao.gov-%{version}
 %if 0%{?fedora} || 0%{?rhel} >= 8
-%patch1 -p1
-%patch2 -p1
+#patch1 -p1
+#patch2 -p1
 %endif
-%patch3 -p1
-%patch4 -p1
-%patch5 -p1
-%patch6 -p1
-%patch7 -p1
+#patch3 -p1
+#patch4 -p1
+#patch5 -p1
+#patch6 -p1
+#patch7 -p1
 
 cd ..
 mv autenticacao.gov-%{version} autenticacao.gov-%{version}.tmp
@@ -186,6 +167,7 @@ ln -s -f ../../../../pixmaps/pteid-signature.png $RPM_BUILD_ROOT/usr/share/icons
 %if 0%{?fedora} || 0%{?rhel}
 mkdir -p $RPM_BUILD_ROOT/etc/ld.so.conf.d/
 echo "/usr/local/lib" > $RPM_BUILD_ROOT/etc/ld.so.conf.d/pteid.conf
+desktop-file-validate %{buildroot}%{_datadir}/applications/pteid-mw-gui.desktop
 %endif
 
 #mkdir -p $RPM_BUILD_ROOT/usr/share/mime/packages
@@ -226,14 +208,13 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 fi
 
 %files
-%defattr(-,root,root)
 /etc/ld.so.conf.d/pteid.conf
 /usr/local/lib/*
-#/usr/local/lib/libpteid-poppler.a
 /usr/local/bin/eidguiV2
 /usr/local/bin/pteiddialogsQTsrv
 /usr/local/bin/eidmw_en.qm
 /usr/local/bin/eidmw_nl.qm
+/usr/local/bin/Lato-Regular.ttf
 /usr/local/include/*
 /usr/share/applications/*
 /usr/share/icons/*
@@ -243,6 +224,12 @@ fi
 %{_jnidir}/*
 
 %changelog
+* Sat Nov 21 2020 Sérgio Basto <sergio@serjux.com> - 3.3.1-1
+- Update pteid-mw to 3.3.1
+
+* Wed Jan 08 2020 Sérgio Basto <sergio@serjux.com> - 3.0.21-3
+- Rebuild for Qt 5.13.2
+
 * Mon Dec 02 2019 Sérgio Basto <sergio@serjux.com> - 3.0.21-2
 - Better spec file using make install
 
