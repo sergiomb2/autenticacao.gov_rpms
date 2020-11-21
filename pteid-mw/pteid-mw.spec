@@ -28,11 +28,12 @@ Name:           pteid-mw
 License:        GPLv2+
 Group:          System/Libraries
 Version:        3.3.1
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Portuguese eID middleware
 Url:            https://github.com/amagovpt/autenticacao.gov
 Vendor:         Portuguese Government
 Source0:        https://github.com/amagovpt/autenticacao.gov/archive/v%{version}/autenticacao.gov-%{version}.tar.gz
+Patch4:         0004-add-pt.gov.autenticacao.appdata.xml.patch
 
 BuildRequires:  pcsc-lite-devel
 BuildRequires:  make
@@ -89,25 +90,24 @@ Requires:       hicolor-icon-theme
 %{?kf5_kinit_requires}
 %endif
 
-
 %description
  The Autenticação.Gov package provides a utility application (eidguiV2), a set of
  libraries and a PKCS#11 module to use the Portuguese Identity Card
  (Cartão de Cidadão) and Chave Móvel Digital in order to authenticate securely
  in certain websites and sign documents.
 
+%package devel
+Summary: Development files
+%description devel
+This package contains the development files.
+
 %prep
 %setup -q -n autenticacao.gov-%{version}
 %if 0%{?fedora} || 0%{?rhel} >= 8
-#patch1 -p1
-#patch2 -p1
 %endif
-#patch3 -p1
-#patch4 -p1
-#patch5 -p1
-#patch6 -p1
-#patch7 -p1
+%patch4 -p1
 
+# move pteid-mw-pt/_src/eidmw/ to root
 cd ..
 mv autenticacao.gov-%{version} autenticacao.gov-%{version}.tmp
 mv autenticacao.gov-%{version}.tmp/pteid-mw-pt/_src/eidmw/ autenticacao.gov-%{version}
@@ -138,10 +138,11 @@ qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib/jvm/java-1.8.0-ope
 %if 0%{?fedora} || 0%{?rhel}
 # ./configure_fedora.sh
 # %%qmake_qt5 does not strip debug symbols
-%qmake_qt5 PKG_NAME=pteid PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-1.8.0-openjdk/include/ /usr/lib/jvm/java-1.8.0-openjdk/include/linux/" pteid-mw.pro
+%{qmake_qt5} PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-1.8.0-openjdk/include/ /usr/lib/jvm/java-1.8.0-openjdk/include/linux/" pteid-mw.pro
 %endif
 
-make %{?jobs:-j%jobs}
+%{make_build}
+
 
 %install
 #install libs
@@ -209,7 +210,7 @@ fi
 
 %files
 /etc/ld.so.conf.d/pteid.conf
-/usr/local/lib/*
+/usr/local/lib/*.so.*
 /usr/local/bin/eidguiV2
 /usr/local/bin/pteiddialogsQTsrv
 /usr/local/bin/eidmw_en.qm
@@ -223,7 +224,15 @@ fi
 /usr/local/share/pteid-mw/www/
 %{_jnidir}/*
 
+%files devel
+/usr/local/include/*
+/usr/local/lib/*.so
+/usr/local/lib/*.a
+
 %changelog
+* Sat Nov 21 2020 Sérgio Basto <sergio@serjux.com> - 3.3.1-2
+- rpmlint pteid-mw-3.3.1-1.fc32.src.rpm pteid-mw-3.3.1-1.fc32.x86_64.rpm
+
 * Sat Nov 21 2020 Sérgio Basto <sergio@serjux.com> - 3.3.1-1
 - Update pteid-mw to 3.3.1
 
@@ -378,7 +387,7 @@ fi
   New SVN snapshot : revision 3271 - Fix in PKCS11 module to support acroread SHA-256 signatures
 
 * Wed Jan 30 2013 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
-  Fix %post and %postun, it was breaking the library symlinks on upgrade
+  Fix %%post and %%postun, it was breaking the library symlinks on upgrade
 
 * Mon Jan 21 2013 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
 - New SVN snapshot : revision 3256 - Fix the titlebar in pteidcertinstall.xpi
