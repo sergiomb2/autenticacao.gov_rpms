@@ -165,9 +165,9 @@ mkdir -p $RPM_BUILD_ROOT/usr/share/icons/hicolor/64x64/mimetypes/
 ln -s -f ../../../../pixmaps/pteid-signature.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/64x64/mimetypes/application-x-signedcc.png
 ln -s -f ../../../../pixmaps/pteid-signature.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/64x64/mimetypes/gnome-mime-application-x-signedcc.png
 
-%if 0%{?fedora} || 0%{?rhel}
 mkdir -p $RPM_BUILD_ROOT/etc/ld.so.conf.d/
 echo "/usr/local/lib" > $RPM_BUILD_ROOT/etc/ld.so.conf.d/pteid.conf
+%if 0%{?fedora} || 0%{?rhel}
 desktop-file-validate %{buildroot}%{_datadir}/applications/pteid-mw-gui.desktop
 %endif
 
