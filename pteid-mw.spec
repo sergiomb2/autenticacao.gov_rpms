@@ -12,6 +12,7 @@
 # license that conforms to the Open Source Definition (Version 1.9)
 # published by the Open Source Initiative.
 
+%global __brp_check_rpaths %{nil}
 
 # norootforbuild
 #Blame xml-security so
@@ -27,8 +28,8 @@
 Name:           pteid-mw
 License:        GPLv2+
 Group:          System/Libraries
-Version:        3.3.1
-Release:        2%{?dist}
+Version:        3.8.0
+Release:        1%{?dist}
 Summary:        Portuguese eID middleware
 Url:            https://github.com/amagovpt/autenticacao.gov
 Vendor:         Portuguese Government
@@ -47,7 +48,7 @@ Requires(postun): /usr/bin/gtk-update-icon-cache
 Conflicts:  cartao_de_cidadao
 
 %if 0%{?suse_version}
-BuildRequires:  java-1_8_0-openjdk-devel
+BuildRequires:  java-11-openjdk-devel
 BuildRequires:  libqt5-qtbase-devel
 BuildRequires:  libqt5-qtdeclarative-devel
 BuildRequires:  libqt5-qtquickcontrols2
@@ -69,7 +70,7 @@ Requires: libqt5-qtgraphicaleffects
 
 %if 0%{?fedora} || 0%{?rhel}
 BuildRequires:  gcc-c++
-BuildRequires:  java-1.8.0-openjdk-devel
+BuildRequires:  java-11-openjdk-devel
 BuildRequires:  qt5-qtbase-devel
 BuildRequires:  qt5-qtdeclarative-devel
 BuildRequires:  qt5-qtquickcontrols2-devel
@@ -112,6 +113,7 @@ cd ..
 mv autenticacao.gov-%{version} autenticacao.gov-%{version}.tmp
 mv autenticacao.gov-%{version}.tmp/pteid-mw-pt/_src/eidmw/ autenticacao.gov-%{version}
 cd autenticacao.gov-%{version}
+sed -i 's/java-11-openjdk-amd64/java-11-openjdk/' eidlibJava_Wrapper/eidlibJava_Wrapper.pro
 
 # create dirs that git doesn't
 #mkdir lib jar
@@ -141,13 +143,13 @@ qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib/jvm/java-1.8.0-ope
 %{qmake_qt5} PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-1.8.0-openjdk/include/ /usr/lib/jvm/java-1.8.0-openjdk/include/linux/" pteid-mw.pro
 %endif
 
-%{make_build}
+%make_build
 
 
 %install
 #install libs
 mkdir -p $RPM_BUILD_ROOT/usr/local/lib/
-make install INSTALL_ROOT=$RPM_BUILD_ROOT
+%make_install INSTALL_ROOT=$RPM_BUILD_ROOT
 
 mkdir -p $RPM_BUILD_ROOT%{_jnidir}/
 install -m 755 -p jar/pteidlibj.jar $RPM_BUILD_ROOT%{_jnidir}/
@@ -170,8 +172,6 @@ echo "/usr/local/lib" > $RPM_BUILD_ROOT/etc/ld.so.conf.d/pteid.conf
 %if 0%{?fedora} || 0%{?rhel}
 desktop-file-validate %{buildroot}%{_datadir}/applications/pteid-mw-gui.desktop
 %endif
-
-#mkdir -p $RPM_BUILD_ROOT/usr/share/mime/packages
 
 %if 0%{?suse_version}
  %suse_update_desktop_file -i pteid-mw-gui Office Presentation
@@ -215,13 +215,13 @@ fi
 /usr/local/bin/pteiddialogsQTsrv
 /usr/local/bin/eidmw_en.qm
 /usr/local/bin/eidmw_nl.qm
-/usr/local/bin/Lato-Regular.ttf
 /usr/local/include/*
 /usr/share/applications/*
 /usr/share/icons/*
 /usr/share/pixmaps/*
 /usr/local/share/certs/
 /usr/local/share/pteid-mw/www/
+/usr/local/share/pteid-mw/fonts/
 %{_jnidir}/*
 
 %files devel
@@ -230,6 +230,9 @@ fi
 /usr/local/lib/*.a
 
 %changelog
+* Wed Sep 21 2022 Sérgio Basto <sergio@serjux.com> - 3.8.0-1
+- 3.8.0
+
 * Sat Nov 21 2020 Sérgio Basto <sergio@serjux.com> - 3.3.1-2
 - rpmlint pteid-mw-3.3.1-1.fc32.src.rpm pteid-mw-3.3.1-1.fc32.x86_64.rpm
 
