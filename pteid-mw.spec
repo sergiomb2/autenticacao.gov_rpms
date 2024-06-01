@@ -28,7 +28,7 @@
 Name:           pteid-mw
 License:        GPLv2+
 Group:          System/Libraries
-Version:        3.8.0
+Version:        3.12.0
 Release:        1%{?dist}
 Summary:        Portuguese eID middleware
 Url:            https://github.com/amagovpt/autenticacao.gov
@@ -68,6 +68,9 @@ Requires: libqt5-qtquickcontrols
 Requires: libqt5-qtgraphicaleffects
 %endif
 
+BuildRequires: eac-devel
+BuildRequires: cjson-devel
+
 %if 0%{?fedora} || 0%{?rhel}
 BuildRequires:  gcc-c++
 BuildRequires:  java-11-openjdk-devel
@@ -78,7 +81,11 @@ BuildRequires:  qt5-qttools-devel
 BuildRequires:  libpng-devel
 BuildRequires:  cairo-devel
 BuildRequires:  curl-devel
+%if 0%{?rhel} == 8
+BuildRequires:  openssl3-devel
+%else
 BuildRequires:  openssl-devel
+%endif
 BuildRequires:  pcsc-lite-ccid
 BuildRequires:  poppler-qt5-devel
 BuildRequires:  xerces-c-devel
@@ -106,7 +113,7 @@ This package contains the development files.
 %setup -q -n autenticacao.gov-%{version}
 %if 0%{?fedora} || 0%{?rhel} >= 8
 %endif
-%patch4 -p1
+%patch -P4 -p1
 
 # move pteid-mw-pt/_src/eidmw/ to root
 cd ..
@@ -114,7 +121,7 @@ mv autenticacao.gov-%{version} autenticacao.gov-%{version}.tmp
 mv autenticacao.gov-%{version}.tmp/pteid-mw-pt/_src/eidmw/ autenticacao.gov-%{version}
 cd autenticacao.gov-%{version}
 sed -i 's/java-11-openjdk-amd64/java-11-openjdk/' eidlibJava_Wrapper/eidlibJava_Wrapper.pro
-
+sed -i 's/release 8/release 11/' eidlibJava_Wrapper/eidlibJava_Wrapper.pro
 # create dirs that git doesn't
 #mkdir lib jar
 mkdir -p eidlibJava/class
@@ -140,7 +147,9 @@ qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib/jvm/java-1.8.0-ope
 %if 0%{?fedora} || 0%{?rhel}
 # ./configure_fedora.sh
 # %%qmake_qt5 does not strip debug symbols
-%{qmake_qt5} PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-1.8.0-openjdk/include/ /usr/lib/jvm/java-1.8.0-openjdk/include/linux/" pteid-mw.pro
+%{qmake_qt5} \
+PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-11-openjdk/include/ /usr/lib/jvm/java-11-openjdk/include/linux/" pteid-mw.pro
+#PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-11-openjdk/include/ /usr/lib/jvm/java-11-openjdk/include/linux/ %{_includedir}/openssl3 %{_libdir}/openssl3" pteid-mw.pro
 %endif
 
 %make_build
@@ -227,9 +236,11 @@ fi
 %files devel
 /usr/local/include/*
 /usr/local/lib/*.so
-/usr/local/lib/*.a
 
 %changelog
+* Sat Jun 01 2024 Sérgio Basto <sergio@serjux.com> - 3.12.0-1
+- 3.12.0
+
 * Wed Sep 21 2022 Sérgio Basto <sergio@serjux.com> - 3.8.0-1
 - 3.8.0
 
@@ -404,7 +415,7 @@ fi
 * Mon Nov 05 2012 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
 - Improved package description
 
-* Mon Oct 31 2012 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
+* Wed Oct 31 2012 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
 - New SVN snapshot revision 3078 - More fine-grained positioning for signatures and 
   some GUI improvements
 
