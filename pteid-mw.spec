@@ -1,7 +1,7 @@
 #
 # spec file for package pteid-mw
 #
-# Copyright (c) 2011-2018 Caixa Magica Software
+# Copyright (c) 2011-2023 Caixa Magica Software
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -14,10 +14,6 @@
 
 %global __brp_check_rpaths %{nil}
 
-# norootforbuild
-#Blame xml-security so
-#AutoReq: no
-
 #Disable suse-specific checks: there is no way to disable just the lib64 check
 %if 0%{?suse_version}
 %ifarch x86_64
@@ -25,11 +21,14 @@
 %endif
 %endif
 
+%define git_revision git20230328
+%define app_version 3.10.1
+
 Name:           pteid-mw
 License:        GPLv2+
 Group:          System/Libraries
 Version:        3.12.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Portuguese eID middleware
 Url:            https://github.com/amagovpt/autenticacao.gov
 Vendor:         Portuguese Government
@@ -38,9 +37,11 @@ Patch4:         0004-add-pt.gov.autenticacao.appdata.xml.patch
 
 BuildRequires:  pcsc-lite-devel
 BuildRequires:  make
-BuildRequires:  swig
+BuildRequires:  swig >= 4.0.0
 BuildRequires:  libzip-devel
 BuildRequires:  openjpeg2-devel
+BuildRequires:  eac-devel
+
 Requires:       pcsc-lite
 Requires:       curl
 Requires(post): /usr/bin/gtk-update-icon-cache
@@ -49,15 +50,15 @@ Conflicts:  cartao_de_cidadao
 
 %if 0%{?suse_version}
 BuildRequires:  java-11-openjdk-devel
+BuildRequires:  libpoppler-qt5-devel
 BuildRequires:  libqt5-qtbase-devel
+BuildRequires:  libqt5-qttools-devel
 BuildRequires:  libqt5-qtdeclarative-devel
 BuildRequires:  libqt5-qtquickcontrols2
-BuildRequires:  libqt5-qttools-devel
 BuildRequires:  libQt5QuickControls2-devel
 BuildRequires:  libQt5Gui-private-headers-devel
 BuildRequires:  libxml-security-c-devel
 BuildRequires:  libcurl-devel
-BuildRequires:  libpoppler-qt5-devel
 BuildRequires:  libxerces-c-devel
 BuildRequires:  libopenssl-devel
 BuildRequires:  update-desktop-files
@@ -68,17 +69,17 @@ Requires: libqt5-qtquickcontrols
 Requires: libqt5-qtgraphicaleffects
 %endif
 
-BuildRequires: eac-devel
-BuildRequires: cjson-devel
-
 %if 0%{?fedora} || 0%{?rhel}
-BuildRequires:  gcc-c++
 BuildRequires:  java-11-openjdk-devel
 BuildRequires:  qt5-qtbase-devel
 BuildRequires:  qt5-qtdeclarative-devel
 BuildRequires:  qt5-qtquickcontrols2-devel
 BuildRequires:  qt5-qttools-devel
 BuildRequires:  libpng-devel
+BuildRequires:  cjson-devel
+BuildRequires:  xml-security-c-devel
+BuildRequires:  poppler-qt5-devel
+BuildRequires:  gcc-c++
 BuildRequires:  cairo-devel
 BuildRequires:  curl-devel
 %if 0%{?rhel} == 8
@@ -86,16 +87,12 @@ BuildRequires:  openssl3-devel
 %else
 BuildRequires:  openssl-devel
 %endif
-BuildRequires:  pcsc-lite-ccid
-BuildRequires:  poppler-qt5-devel
-BuildRequires:  xerces-c-devel
-BuildRequires:  xml-security-c-devel
 BuildRequires:  desktop-file-utils
+BuildRequires:  pcsc-lite-ccid
+BuildRequires:  xerces-c-devel
 Requires:       poppler-qt5
 Requires:       pcsc-lite-ccid
 Requires:       hicolor-icon-theme
-#BuildRequires: kf5-kinit-devel
-%{?kf5_kinit_requires}
 %endif
 
 %description
@@ -138,24 +135,21 @@ find eidguiV2 -perm -o=x -type f -exec chmod 644 {} ';'
 %if 0%{?suse_version}
 %ifarch x86_64
 #./configure --lib+=-L/usr/lib64
-qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib64/jvm/java-1.8.0-openjdk-1.8.0/include/ /usr/lib64/jvm/java-1.8.0-openjdk-1.8.0/include/linux/" pteid-mw.pro
+qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib64/jvm/java-11-openjdk-11/include/ /usr/lib64/jvm/java-11-openjdk-11/include/linux/" pteid-mw.pro
 %else
-qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib/jvm/java-1.8.0-openjdk-1.8.0/include/ /usr/lib/jvm/java-1.8.0-openjdk-1.8.0/include/linux/" pteid-mw.pro
+qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib/jvm/java-11-openjdk-11/include/ /usr/lib/jvm/java-11-openjdk-11/include/linux/" pteid-mw.pro
 %endif
 %endif
 
 %if 0%{?fedora} || 0%{?rhel}
-# ./configure_fedora.sh
-# %%qmake_qt5 does not strip debug symbols
-%{qmake_qt5} \
-PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-11-openjdk/include/ /usr/lib/jvm/java-11-openjdk/include/linux/" pteid-mw.pro
+%{qmake_qt5} PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-11-openjdk/include/ /usr/lib/jvm/java-11-openjdk/include/linux/" pteid-mw.pro
 #PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-11-openjdk/include/ /usr/lib/jvm/java-11-openjdk/include/linux/ %{_includedir}/openssl3 %{_libdir}/openssl3" pteid-mw.pro
 %endif
 
 %make_build
 
-
 %install
+
 #install libs
 mkdir -p $RPM_BUILD_ROOT/usr/local/lib/
 %make_install INSTALL_ROOT=$RPM_BUILD_ROOT
@@ -238,6 +232,9 @@ fi
 /usr/local/lib/*.so
 
 %changelog
+* Sun Jun 02 2024 Sérgio Basto <sergio@serjux.com> - 3.12.0-2
+- rebuilt
+
 * Sat Jun 01 2024 Sérgio Basto <sergio@serjux.com> - 3.12.0-1
 - 3.12.0
 
