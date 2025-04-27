@@ -1,0 +1,11 @@
+--- autenticacao.gov-3.13.0/pteid-mw-pt/_src/eidmw/pkcs11/session.c.orig	2025-04-27 05:49:08.136466474 +0100
++++ autenticacao.gov-3.13.0/pteid-mw-pt/_src/eidmw/pkcs11/session.c	2025-04-27 05:49:15.065610422 +0100
+@@ -56,7 +56,7 @@ CK_RV C_OpenSession(CK_SLOT_ID slotID,
+ 
+ 	//   CAutoMutex(&g_oSlotMutex);
+ 	log_trace(WHERE, "I: enter");
+-	ret = p11_lock(slotID); /* mutex per slot slot 0 tot 9 FF=global slot*/
++	ret = p11_lock(); /* mutex per slot slot 0 tot 9 FF=global slot*/
+ 	if (ret != CKR_OK) {
+ 		log_trace(WHERE, "I: leave, p11_lock failed with %i", ret);
+ 		return ((CK_RV)ret);

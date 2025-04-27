@@ -27,13 +27,14 @@
 Name:           pteid-mw
 License:        GPLv2+
 Group:          System/Libraries
-Version:        3.12.0
-Release:        2%{?dist}
+Version:        3.13.0
+Release:        1%{?dist}
 Summary:        Portuguese eID middleware
 Url:            https://github.com/amagovpt/autenticacao.gov
 Vendor:         Portuguese Government
 Source0:        https://github.com/amagovpt/autenticacao.gov/archive/v%{version}/autenticacao.gov-%{version}.tar.gz
 Patch4:         0004-add-pt.gov.autenticacao.appdata.xml.patch
+Patch5:         C23.patch
 
 BuildRequires:  pcsc-lite-devel
 BuildRequires:  make
@@ -70,7 +71,7 @@ Requires: libqt5-qtgraphicaleffects
 %endif
 
 %if 0%{?fedora} || 0%{?rhel}
-BuildRequires:  java-11-openjdk-devel
+BuildRequires:  java-21-openjdk-devel
 BuildRequires:  qt5-qtbase-devel
 BuildRequires:  qt5-qtdeclarative-devel
 BuildRequires:  qt5-qtquickcontrols2-devel
@@ -107,18 +108,15 @@ Summary: Development files
 This package contains the development files.
 
 %prep
-%setup -q -n autenticacao.gov-%{version}
-%if 0%{?fedora} || 0%{?rhel} >= 8
-%endif
-%patch -P4 -p1
+%autosetup -p1 -n autenticacao.gov-%{version}
 
 # move pteid-mw-pt/_src/eidmw/ to root
 cd ..
 mv autenticacao.gov-%{version} autenticacao.gov-%{version}.tmp
 mv autenticacao.gov-%{version}.tmp/pteid-mw-pt/_src/eidmw/ autenticacao.gov-%{version}
 cd autenticacao.gov-%{version}
-sed -i 's/java-11-openjdk-amd64/java-11-openjdk/' eidlibJava_Wrapper/eidlibJava_Wrapper.pro
-sed -i 's/release 8/release 11/' eidlibJava_Wrapper/eidlibJava_Wrapper.pro
+sed -i 's/java-21-openjdk-amd64/java-21-openjdk/' eidlibJava_Wrapper/eidlibJava_Wrapper.pro
+sed -i 's/release 8/release 21/' eidlibJava_Wrapper/eidlibJava_Wrapper.pro
 # create dirs that git doesn't
 #mkdir lib jar
 mkdir -p eidlibJava/class
@@ -135,15 +133,15 @@ find eidguiV2 -perm -o=x -type f -exec chmod 644 {} ';'
 %if 0%{?suse_version}
 %ifarch x86_64
 #./configure --lib+=-L/usr/lib64
-qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib64/jvm/java-11-openjdk-11/include/ /usr/lib64/jvm/java-11-openjdk-11/include/linux/" pteid-mw.pro
+qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib64/jvm/java-21-openjdk-21/include/ /usr/lib64/jvm/java-21-openjdk-21/include/linux/" pteid-mw.pro
 %else
-qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib/jvm/java-11-openjdk-11/include/ /usr/lib/jvm/java-11-openjdk-11/include/linux/" pteid-mw.pro
+qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib/jvm/java-21-openjdk-21/include/ /usr/lib/jvm/java-21-openjdk-21/include/linux/" pteid-mw.pro
 %endif
 %endif
 
 %if 0%{?fedora} || 0%{?rhel}
-%{qmake_qt5} PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-11-openjdk/include/ /usr/lib/jvm/java-11-openjdk/include/linux/" pteid-mw.pro
-#PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-11-openjdk/include/ /usr/lib/jvm/java-11-openjdk/include/linux/ %{_includedir}/openssl3 %{_libdir}/openssl3" pteid-mw.pro
+%{qmake_qt5} PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-21-openjdk/include/ /usr/lib/jvm/java-21-openjdk/include/linux/" pteid-mw.pro
+#PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-21-openjdk/include/ /usr/lib/jvm/java-11-openjdk/include/linux/ %{_includedir}/openssl3 %{_libdir}/openssl3" pteid-mw.pro
 %endif
 
 %make_build
@@ -232,6 +230,12 @@ fi
 /usr/local/lib/*.so
 
 %changelog
+* Sun Apr 27 2025 Sérgio Basto <sergio@serjux.com> - 3.13.0-1
+- Update to 3.13.0
+
+* Tue Apr 15 2025 Sérgio Basto <sergio@serjux.com> - 3.12.0-3
+- rebuilt for xerces-c-3.3
+
 * Sun Jun 02 2024 Sérgio Basto <sergio@serjux.com> - 3.12.0-2
 - rebuilt
 
