@@ -27,7 +27,7 @@
 Name:           pteid-mw
 License:        GPLv2+
 Group:          System/Libraries
-Version:        3.13.0
+Version:        3.13.3
 Release:        1%{?dist}
 Summary:        Portuguese eID middleware
 Url:            https://github.com/amagovpt/autenticacao.gov
@@ -82,12 +82,8 @@ BuildRequires:  xml-security-c-devel
 BuildRequires:  poppler-qt5-devel
 BuildRequires:  gcc-c++
 BuildRequires:  cairo-devel
-BuildRequires:  curl-devel
-%if 0%{?rhel} == 8
-BuildRequires:  openssl3-devel
-%else
-BuildRequires:  openssl-devel
-%endif
+BuildRequires:  curl-devel > 7.62.0
+BuildRequires:  openssl-devel > 3.2
 BuildRequires:  desktop-file-utils
 BuildRequires:  pcsc-lite-ccid
 BuildRequires:  xerces-c-devel
@@ -141,7 +137,6 @@ qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib/jvm/java-21-openjd
 
 %if 0%{?fedora} || 0%{?rhel}
 %{qmake_qt5} PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-21-openjdk/include/ /usr/lib/jvm/java-21-openjdk/include/linux/" pteid-mw.pro
-#PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-21-openjdk/include/ /usr/lib/jvm/java-11-openjdk/include/linux/ %{_includedir}/openssl3 %{_libdir}/openssl3" pteid-mw.pro
 %endif
 
 %make_build
@@ -230,6 +225,10 @@ fi
 /usr/local/lib/*.so
 
 %changelog
+* Sun Sep 21 2025 Sérgio Basto <sergio@serjux.com> - 3.13.3-1
+- Update to 3.13.3
+- Drop EL8, add EL10
+
 * Sun Apr 27 2025 Sérgio Basto <sergio@serjux.com> - 3.13.0-1
 - Update to 3.13.0
 
