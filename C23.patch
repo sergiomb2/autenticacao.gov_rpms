@@ -9,3 +9,35 @@
  	if (ret != CKR_OK) {
  		log_trace(WHERE, "I: leave, p11_lock failed with %i", ret);
  		return ((CK_RV)ret);
+--- autenticacao.gov-3.14.0/pteid-mw-pt/_src/eidmw/common/Util.h.orig	2026-02-03 16:52:51.473036979 +0000
++++ autenticacao.gov-3.14.0/pteid-mw-pt/_src/eidmw/common/Util.h	2026-02-03 16:52:56.921944891 +0000
+@@ -32,6 +32,7 @@
+ #include <cstring>
+ #include <string>
+ #include <functional>
++#include <cstdint>
+ 
+ #ifdef WIN32
+ #include <windows.h>
+--- autenticacao.gov-3.14.0/pteid-mw-pt/_src/eidmw/applayer/APLCardPteid.cpp.orig	2026-02-03 18:52:23.070661080 +0000
++++ autenticacao.gov-3.14.0/pteid-mw-pt/_src/eidmw/applayer/APLCardPteid.cpp	2026-02-03 18:51:15.654810516 +0000
+@@ -392,7 +392,7 @@ CByteArray APL_EIDCard::readTokenData()
+ 		// Get SOD contents and its validation state
+ 		auto sod_contents = AppLayer.getCryptoFwk()->getSodContents(sod_data, store);
+ 		if (sod_contents.first != 0) {
+-			MWLOG_CTX(LEV_ERROR, MOD_APL, "Failed to verify SOD validity with error: %x", sod_contents.first);
++			MWLOG_CTX(LEV_ERROR, MOD_APL, "Failed to verify SOD validity with error: %lx", sod_contents.first);
+ 		}
+ 
+ 		const std::vector<int> expected_tags = {13, 14, 15};
+--- autenticacao.gov-3.14.0/pteid-mw-pt/_src/eidmw/applayer/IcaoDg14.cpp.orig	2026-02-03 19:05:38.730936150 +0000
++++ autenticacao.gov-3.14.0/pteid-mw-pt/_src/eidmw/applayer/IcaoDg14.cpp	2026-02-03 19:05:45.599782432 +0000
+@@ -56,7 +56,7 @@ SecurityInfos *decodeDg14Data(const CByt
+ 		int errLine;
+ 		errCode = ERR_get_error_line_data(&errFile, &errLine, NULL, NULL);
+ 		errString = ERR_error_string(errCode, NULL);
+-		MWLOG(LEV_ERROR, MOD_APL, "%s: openssl error: %s generated in %s line %d", errString, errFile, errLine);
++		MWLOG(LEV_ERROR, MOD_APL, "%s: openssl error: %s generated in %s line %d", __FUNCTION__, errString, errFile, errLine);
+ 	} else {
+ 		MWLOG(LEV_DEBUG, MOD_APL, "%s: The decoder consumed %ld bytes", __FUNCTION__, asn1_data - data_copy.GetBytes());
+ 	}

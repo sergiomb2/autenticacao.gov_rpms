@@ -12,6 +12,12 @@
 # license that conforms to the Open Source Definition (Version 1.9)
 # published by the Open Source Initiative.
 
+%if 0%{?fedora} >= 43
+%global java_ver 25
+%else
+%global java_ver 21
+%endif
+
 %global __brp_check_rpaths %{nil}
 
 #Disable suse-specific checks: there is no way to disable just the lib64 check
@@ -21,13 +27,10 @@
 %endif
 %endif
 
-%define git_revision git20230328
-%define app_version 3.10.1
-
 Name:           pteid-mw
 License:        GPLv2+
 Group:          System/Libraries
-Version:        3.13.3
+Version:        3.14.0
 Release:        1%{?dist}
 Summary:        Portuguese eID middleware
 Url:            https://github.com/amagovpt/autenticacao.gov
@@ -71,7 +74,7 @@ Requires: libqt5-qtgraphicaleffects
 %endif
 
 %if 0%{?fedora} || 0%{?rhel}
-BuildRequires:  java-21-openjdk-devel
+BuildRequires:  java-%{java_ver}-openjdk-devel
 BuildRequires:  qt5-qtbase-devel
 BuildRequires:  qt5-qtdeclarative-devel
 BuildRequires:  qt5-qtquickcontrols2-devel
@@ -108,11 +111,12 @@ This package contains the development files.
 
 # move pteid-mw-pt/_src/eidmw/ to root
 cd ..
-mv autenticacao.gov-%{version} autenticacao.gov-%{version}.tmp
-mv autenticacao.gov-%{version}.tmp/pteid-mw-pt/_src/eidmw/ autenticacao.gov-%{version}
+mv autenticacao.gov-%{version}/pteid-mw-pt/_src/eidmw .
+rm -rf autenticacao.gov-%{version}
+mv eidmw autenticacao.gov-%{version}
 cd autenticacao.gov-%{version}
-sed -i 's/java-21-openjdk-amd64/java-21-openjdk/' eidlibJava_Wrapper/eidlibJava_Wrapper.pro
-sed -i 's/release 8/release 21/' eidlibJava_Wrapper/eidlibJava_Wrapper.pro
+sed -i "s/java-11-openjdk-amd64/java-%{java_ver}-openjdk/" eidlibJava_Wrapper/eidlibJava_Wrapper.pro
+sed -i "s/release 8/release %{java_ver}/" eidlibJava_Wrapper/eidlibJava_Wrapper.pro
 # create dirs that git doesn't
 #mkdir lib jar
 mkdir -p eidlibJava/class
@@ -136,7 +140,7 @@ qmake-qt5 "PREFIX_DIR += /usr/local" "INCLUDEPATH += /usr/lib/jvm/java-21-openjd
 %endif
 
 %if 0%{?fedora} || 0%{?rhel}
-%{qmake_qt5} PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-21-openjdk/include/ /usr/lib/jvm/java-21-openjdk/include/linux/" pteid-mw.pro
+%{qmake_qt5} PKG_NAME=pteid CONFIG+=release PREFIX_DIR="/usr/local" INCLUDEPATH+="/usr/lib/jvm/java-%{java_ver}-openjdk/include/ /usr/lib/jvm/java-%{java_ver}-openjdk/include/linux/" pteid-mw.pro
 %endif
 
 %make_build
@@ -225,6 +229,9 @@ fi
 /usr/local/lib/*.so
 
 %changelog
+* Tue Feb 03 2026 Sérgio Basto <sergio@serjux.com> - 3.14.0-1
+- Update to 3.14.0
+
 * Sun Sep 21 2025 Sérgio Basto <sergio@serjux.com> - 3.13.3-1
 - Update to 3.13.3
 - Drop EL8, add EL10
@@ -379,7 +386,7 @@ fi
 * Fri Dec 13 2013 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
   New SVN snapshot: revision 3484 - Fixed locking issue on SignPDF
 
-* Mon Dec 09 2013 Andre Guerreiro 
+* Mon Dec 09 2013 Andre Guerreiro
   New SVN snapshot: revision 3468 - Fix CAP Pin change functionality
 
 * Fri Nov 22 2013 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
@@ -392,7 +399,7 @@ fi
   New SVN snapshot : revision 3431 - new CA certificates
 
 * Tue Nov 12 2013 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
-  New SVN snapshot : revision 3422 - Various bugfixes 
+  New SVN snapshot : revision 3422 - Various bugfixes
 
 * Wed Sep 11 2013 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
   New SVN snapshot : revision 3400 - GUI Changes as requested by AMA, various bugfixes and new CA Certificates
@@ -416,16 +423,16 @@ fi
 - Improved package description
 
 * Wed Oct 31 2012 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
-- New SVN snapshot revision 3078 - More fine-grained positioning for signatures and 
+- New SVN snapshot revision 3078 - More fine-grained positioning for signatures and
   some GUI improvements
 
 * Mon Oct 29 2012 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
-- New SVN snapshot revision 3058 - fix multiline issue in signature and parallel build 
-  for poppler 
+- New SVN snapshot revision 3058 - fix multiline issue in signature and parallel build
+  for poppler
 
 * Fri Oct 26 2012 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
 - New major release 2.1 - PDF Signatures is the new feature
- 
+
 * Fri Jul 27 2012 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
 - Bump to 2957
 - Fix Fedora 17 build
