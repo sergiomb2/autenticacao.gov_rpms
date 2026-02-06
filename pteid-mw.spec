@@ -248,14 +248,73 @@ fi
 * Sat Jun 01 2024 Sérgio Basto <sergio@serjux.com> - 3.12.0-1
 - 3.12.0
 
+* Tue Mar 28 2023 André Guerreiro <andre.guerreiro@caixamagica.pt>
+  - SCAP signature bugfix
+
+* Tue Mar 21 2023 André Guerreiro <andre.guerreiro@caixamagica.pt>
+  - New feature: SCAP signature in batch mode
+  - CMD signature for foreign residents
+  - Improvements in remote address reading
+
+* Tue Jan 3 2023 André Guerreiro <andre.guerreiro@caixamagica.pt>
+  - Bugfix in address change
+  - Update help messages related to the new address change process in ePortugal
+
+* Tue Dec 20 2022 André Guerreiro <andre.guerreiro@caixamagica.pt>
+  - Address reading from online service
+  - Certificate OCSP validation before signing with CC card
+  - XAdES signature improvement: list and extract the contents of an ASiC container
+
 * Wed Sep 21 2022 Sérgio Basto <sergio@serjux.com> - 3.8.0-1
 - 3.8.0
+
+* Wed Jun 1 2022 André Guerreiro <andre.guerreiro@caixamagica.pt>
+  - Chave Movel Digital signature support in the pteidlib SDK
+  - New notifications menu and cache preference mandatory notification
+  - New certificate status menu
+  - Improvements in PDF signature
+
+* Wed Dec 15 2021 André Guerreiro <andre.guerreiro@caixamagica.pt>
+  - Improvements in visible PDF signature: ability to resize signature seal and select visible fields
+  - Support all available signature algorithms in pteid-pkcs11 module
+  - Bugfix in SCAP attributes loading
+  - Bugfix in address reading. Address PIN is always requested when needed
+  - Fixes in SDK exception handling
+  - Improvements in Address Confirmation feature and error messages
+
+* Wed May 26 2021 André Guerreiro <andre.guerreiro@caixamagica.pt>
+  - SCAP signature improvements
+  - Improved signature with custom image
+  - Batch PDF signature improvements
+
+* Mon Mar 29 2021 André Guerreiro <andre.guerreiro@caixamagica.pt>
+  - New unified signature page in GUI app
+  - Bugfixes in SCAP signatures
+  - Stop bundling lato font and use the distro-provided TTF file
+  - Extended support for expired cards until December 31st 2021
+  - New feature - diagnostic report
+  - Improved detection of unsupported PDF documents with XFA forms
 
 * Sat Nov 21 2020 Sérgio Basto <sergio@serjux.com> - 3.3.1-2
 - rpmlint pteid-mw-3.3.1-1.fc32.src.rpm pteid-mw-3.3.1-1.fc32.x86_64.rpm
 
 * Sat Nov 21 2020 Sérgio Basto <sergio@serjux.com> - 3.3.1-1
 - Update pteid-mw to 3.3.1
+
+* Wed Oct 28 2020 André Guerreiro <andre.guerreiro@caixamagica.pt>
+  - Support for legislative change regarding expired cards until March 31st 2021
+  - Improvement in trusted certificates update feature
+
+* Fri Oct 16 2020 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
+  - SCAP signature with timestamp is a new option
+  - Small format signature in simple signature menu
+  - Commandline interface in the GUI app as a shortcut for signature features
+
+* Wed Feb 26 2020 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
+  - CC PKI certificates self-update
+  - GUI scaling options to better support high-DPI screens
+  - New feature: Export certificate to file
+  - Accessibility improvements
 
 * Wed Jan 08 2020 Sérgio Basto <sergio@serjux.com> - 3.0.21-3
 - Rebuild for Qt 5.13.2
@@ -277,6 +336,15 @@ fi
 
 * Sun Nov 17 2019 Sérgio Basto <sergio@serjux.com> - 3.0.20-1
 - 3.0.20
+
+* Fri Sep 13 2019 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
+  Accessibility improvements in the GUI application
+  Support for loading SCAP attributes using Chave Movel
+  New feature: export photo in PNG or JPEG format
+
+* Wed May 29 2019 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
+  SCAP Signature improvements
+  Improved support for new 3072-bit RSA smartcards
 
 * Tue Apr 16 2019 Andre Guerreiro <andre.guerreiro@caixamagica.pt>
   PDF Signature fixes
