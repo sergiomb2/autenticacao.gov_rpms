@@ -30,14 +30,13 @@
 Name:           pteid-mw
 License:        GPLv2+
 Group:          System/Libraries
-Version:        3.14.0
+Version:        3.15.0
 Release:        1%{?dist}
 Summary:        Portuguese eID middleware
 Url:            https://github.com/amagovpt/autenticacao.gov
 Vendor:         Portuguese Government
 Source0:        https://github.com/amagovpt/autenticacao.gov/archive/v%{version}/autenticacao.gov-%{version}.tar.gz
 Patch4:         0004-add-pt.gov.autenticacao.appdata.xml.patch
-Patch5:         C23.patch
 
 BuildRequires:  pcsc-lite-devel
 BuildRequires:  make
@@ -87,6 +86,7 @@ BuildRequires:  gcc-c++
 BuildRequires:  cairo-devel
 BuildRequires:  curl-devel > 7.62.0
 BuildRequires:  openssl-devel > 3.2
+BuildRequires:  openssl-devel < 1:4.0
 BuildRequires:  desktop-file-utils
 BuildRequires:  pcsc-lite-ccid
 BuildRequires:  xerces-c-devel
@@ -229,6 +229,10 @@ fi
 /usr/local/lib/*.so
 
 %changelog
+* Fri Jul 24 2026 Sérgio M. Basto <sergio@serjux.com> - 3.15.0-1
+- Update to 3.15.0
+- Use OpenSSL 3 because OpenSSL 4.0 causes build errors
+
 * Tue Feb 03 2026 Sérgio Basto <sergio@serjux.com> - 3.14.0-1
 - Update to 3.14.0
 
