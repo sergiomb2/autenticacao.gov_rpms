@@ -30,8 +30,8 @@
 Name:           pteid-mw
 License:        EUPL-1.2
 Group:          System/Libraries
-Version:        3.15.0
-Release:        2%{?dist}
+Version:        3.16.0
+Release:        1%{?dist}
 Summary:        Portuguese eID middleware
 Url:            https://github.com/amagovpt/autenticacao.gov
 Vendor:         Portuguese Government
@@ -43,7 +43,7 @@ BuildRequires:  make
 BuildRequires:  swig >= 4.0.0
 BuildRequires:  libzip-devel
 BuildRequires:  openjpeg2-devel
-BuildRequires:  eac-devel
+BuildRequires:  openpace-devel
 
 Requires:       pcsc-lite
 Requires:       curl
@@ -229,6 +229,9 @@ fi
 /usr/local/lib/*.so
 
 %changelog
+* Fri Nov 13 2026 Sérgio M. Basto <sergio@serjux.com> - 3.16.0-1
+- Update to 3.16.0
+
 * Fri Jul 24 2026 Sérgio M. Basto <sergio@serjux.com> - 3.15.0-2
 - Fix License
 
